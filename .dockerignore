@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+.git/
+.gitignore
+.env
+.env.*
+!.env.example
+service-account.json
+*-credentials.json
+.ruff_cache/
+.pytest_cache/
+README.md
+.DS_Store

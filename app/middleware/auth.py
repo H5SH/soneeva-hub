@@ -1,5 +1,5 @@
 import jwt
-from fastapi import Request, status, FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 

@@ -2,13 +2,12 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.models.app import AppConfig
 from app.utils import get_path
-
-from dotenv import load_dotenv
 
 load_dotenv() # important for loading firebase env
 

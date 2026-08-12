@@ -1,5 +1,4 @@
 import json
-import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -9,8 +8,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.models.app import AppConfig
 from app.utils import get_path
 
-APP_ID_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")
+from dotenv import load_dotenv
 
+load_dotenv() # important for loading firebase env
 
 class Settings(BaseSettings):
     """Everything comes from .env / the process environment."""
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
         description="Public URL of this service. Used to build Stripe return URLs.",
     )
 
-    api_secret: str = Field(description="HMAC secret the apps sign their x-api-key JWT with")
+    codinative_secret: str = Field(description="HMAC secret the apps sign their x-api-key JWT with")
     stripe_secret_key: str
     stripe_webhook_secret: str
 
@@ -36,16 +36,15 @@ class AppRegistry:
         self._dir = directory or get_path("apps")
         self._cache: dict[str, AppConfig] = {}
 
-    def get(self, app_id: str) -> AppConfig | None:
-        if cached := self._cache.get(app_id):
+    def get(self, id: str) -> AppConfig | None:
+        if cached := self._cache.get(id):
             return cached
-        if not APP_ID_PATTERN.match(app_id):
-            return None
-        path = self._dir / f"{app_id}.json"
+        
+        path = self._dir / f"{id}.json"
         if not path.is_file():
             return None
-        config = AppConfig(app_id=app_id, **json.loads(path.read_text()))
-        self._cache[app_id] = config
+        config = AppConfig(id=id, **json.loads(path.read_text()))
+        self._cache[id] = config
         return config
 
     @property
@@ -55,4 +54,4 @@ class AppRegistry:
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return Settings() # type: ignore

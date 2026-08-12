@@ -20,12 +20,10 @@ class AuthContext(BaseModel):
 
     app_id: str
     store_hash: str
-    access_token: str | None = None
     claimed_plan: str | None = Field(
         default=None,
         description="Plan asserted by the caller's token. Informational only, never trusted.",
     )
-    email: str | None = None
 
     @property
     def key(self) -> str:

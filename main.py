@@ -12,11 +12,7 @@ from app.services.payment import Payment
 from app.services.webhook import WebhookService
 
 DESCRIPTION = """
-Central billing service for the BigCommerce apps.
-
-Authenticate every call with `x-api-key`: a JWT signed with the shared secret, carrying
-`store_hash`, `access_token`, `plan` and an `exp`. Browser redirects into `/billing/...`
-accept the same token as `?token=` instead, since a redirect cannot set headers.
+Central billing service for the Codinative apps.
 """
 
 
@@ -46,10 +42,14 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
         openapi_url="/openapi.json",
     )
-    app.add_middleware(AuthMiddleware, secret=settings.api_secret)
+    app.add_middleware(AuthMiddleware, secret=settings.codinative_secret) # type: ignore
     for router in ROUTERS:
         app.include_router(router)
     return app
 
 
 app = create_app()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

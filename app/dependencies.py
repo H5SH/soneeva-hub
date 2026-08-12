@@ -27,7 +27,7 @@ def get_webhooks(request: Request) -> WebhookService:
 
 def get_app(
     app_id: Annotated[str, Path(description="Which BigCommerce app the caller is acting for")],
-    registry: Annotated[AppRegistry, Depends(get_registry)],
+    registry: AppRegistry = Depends(get_registry),
 ) -> AppConfig:
     app = registry.get(app_id)
     if not app:
@@ -38,15 +38,13 @@ def get_app(
 def get_auth(request: Request, app: Annotated[AppConfig, Depends(get_app)]) -> AuthContext:
     claims: TokenClaims | None = getattr(request.state, "claims", None)
     if not claims:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing x-api-key")
-    if claims.app_id and claims.app_id != app.app_id:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing headers")
+    if claims.app_id and claims.app_id != app.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Token is not valid for this app")
     return AuthContext(
-        app_id=app.app_id,
+        app_id=app.id,
         store_hash=claims.store_hash,
-        access_token=claims.access_token,
         claimed_plan=claims.plan,
-        email=claims.email,
     )
 
 

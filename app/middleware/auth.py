@@ -1,7 +1,7 @@
 import jwt
-from fastapi import Request, status
+from fastapi import Request, status, FastAPI
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from app.models.auth import TokenClaims
 
@@ -10,7 +10,7 @@ LEEWAY_SECONDS = 30
 HEADER_NAME = "x-api-key"
 QUERY_NAME = "token"
 PUBLIC_PATHS = {"/health", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"}
-PUBLIC_PREFIXES = ("/webhooks/",)
+PUBLIC_PREFIXES = ("/webhooks/", "/billing/")
 PUBLIC_BILLING_ACTIONS = {"return", "cancel"}
 
 
@@ -21,11 +21,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
     hosted checkout pages accept the same token as `?token=` — issue those short-lived.
     """
 
-    def __init__(self, app, secret: str) -> None:
+    def __init__(self, app: FastAPI, secret: str) -> None:
         super().__init__(app)
         self._secret = secret
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint):
         if self._is_public(request.url.path):
             return await call_next(request)
 

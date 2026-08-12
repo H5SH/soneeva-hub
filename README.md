@@ -140,6 +140,35 @@ Stripe webhooks locally:
 stripe listen --forward-to localhost:8080/webhooks/stripe/commerce-manager
 ```
 
+## Type checking & linting
+
+Type checking runs via [pyright](https://microsoft.github.io/pyright/) in `strict` mode
+(see [pyrightconfig.json](pyrightconfig.json)):
+
+```bash
+uv run pyright
+```
+
+Linting runs via [ruff](https://docs.astral.sh/ruff/):
+
+```bash
+uv run ruff check .
+```
+
+### Pre-push hook
+
+A pre-push hook runs `ruff check` before every `git push` and blocks the push if it fails. The hook
+lives in [scripts/hooks/pre-push](scripts/hooks/pre-push) (tracked in git, unlike `.git/hooks/`) and
+is wired up per-clone with:
+
+```bash
+git config core.hooksPath scripts/hooks
+```
+
+pyright is not part of the hook — the codebase isn't clean under strict mode yet, so gating pushes
+on it today would block everything. Run `uv run pyright` manually, and once the existing findings
+are cleared, add `uv run pyright` to `scripts/hooks/pre-push` to enforce it on every push too.
+
 ## Deploying to Cloud Run
 
 ```bash

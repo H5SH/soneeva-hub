@@ -17,7 +17,7 @@ def with_query(url: str, **params: str | None) -> str:
     return f"{url}{'&' if '?' in url else '?'}{query}"
 
 
-def hosted_urls(base_url: str, app_id: str, redirect: str | None) -> tuple[str, str]:
+def hosted_urls(base_url: str, app_id: str, redirect: str) -> tuple[str, str]:
     """Success and cancel URLs that land back on this service, so state is synced before the app sees it."""
     base = f"{base_url.rstrip('/')}/billing/{app_id}"
     success = with_query(f"{base}/return", redirect=redirect)

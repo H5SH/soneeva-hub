@@ -10,7 +10,7 @@ class PaymentGateway(ABC):
 
     @abstractmethod
     async def create_customer(
-        self, metadata: dict[str, str], email: str | None = None, name: str | None = None
+        self, metadata: dict[str, str], name: str | None = None
     ) -> str:
         """Returns the provider customer id."""
 

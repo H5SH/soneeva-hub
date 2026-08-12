@@ -1,24 +1,25 @@
 {
+  "id": "commerce-manager",
   "name": "BigCommerce Manager AI",
-  "return_url": "https://commerce-manager.example.com/billing",
-  "cancel_url": "https://commerce-manager.example.com/billing",
-  "allowed_return_hosts": ["localhost", "127.0.0.1"],
   "free_plan_code": "free",
   "plans": [
     {
       "code": "free",
       "name": "Free",
       "description": "Kick the tyres.",
-      "features": ["1 store", "Manual sync"],
+      "features": ["1 store", "Manual sync", "1 allowed Job"],
       "limits": { "products": 50, "syncs_per_day": 5 }
     },
     {
-      "code": "starter",
-      "name": "Starter",
+      "code": "base",
+      "name": "Base",
       "description": "For a single growing store.",
       "price_id": "price_replace_me_starter",
       "trial_days": 14,
-      "features": ["1 store", "Hourly sync", "Email support"],
+      "amount": 20,
+      "currency": "$",
+      "interval": "month",
+      "features": ["1 store", "Hourly sync", "Email support", "Instagram widget"],
       "limits": { "products": 1000, "syncs_per_day": 24 }
     },
     {
@@ -27,6 +28,9 @@
       "description": "For agencies and multi-store merchants.",
       "price_id": "price_replace_me_pro",
       "highlight": true,
+      "currency": "$",
+      "interval": "month",
+      "amount": 50,
       "features": ["Unlimited stores", "Realtime sync", "Priority support", "AI bulk edits"],
       "limits": { "products": 100000, "syncs_per_day": 1000 }
     }

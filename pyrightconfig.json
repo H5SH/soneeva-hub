@@ -1,0 +1,24 @@
+{
+  "typeCheckingMode": "strict",
+  "reportMissingImports": true,
+  "reportOptionalSubscript": true,
+  "reportOptionalMemberAccess": true,
+  "reportPrivateUsage": true,
+  "reportUnknownMemberType": "none",
+  "reportUnusedImport": true,
+  "reportUnusedVariable": true,
+  "reportUnnecessaryTypeIgnoreComment": true,
+  "reportMissingTypeStubs": "none",
+  "reportUnnecessaryCast": true,
+  "reportUnreachableCode": true,
+  "reportConstantRedefinition": true,
+  "reportUnnecessaryComparison": true,
+  "reportUnnecessaryIsInstance": true,
+  "reportIncompatibleMethodOverride": true,
+  "reportIncompatibleVariableOverride": true,
+  "reportUninitializedInstanceVariable": true,
+  "reportPossiblyUnboundVariable": true,
+  "ignore": [
+    "src/resources/scripts"
+  ]
+}

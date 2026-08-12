@@ -61,7 +61,7 @@
       <p class="desc">{{ plan.description or "" }}</p>
       <div class="price">
         {% if plan.amount %}
-          {{ "%.2f"|format(plan.amount / 100) }} <span>{{ plan.currency|upper }} / {{ plan.interval }}</span>
+          {{ "%.2f"|format(plan.amount) }} <span>{{ plan.currency|upper }} / {{ plan.interval }}</span>
         {% else %}
           Free
         {% endif %}

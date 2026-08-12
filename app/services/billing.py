@@ -40,7 +40,7 @@ class BillingService:
             if not create:
                 return None
             customer_id = await self._payment.create_customer(
-                metadata=auth.gateway_metadata, email=auth.email, name=auth.store_hash
+                metadata=auth.gateway_metadata, name=auth.store_hash
             )
         await self._db.set_row(
             Collection.CUSTOMERS,
@@ -59,7 +59,7 @@ class BillingService:
         plan = app.plan_by_price(gateway.price_id) if gateway.price_id else None
         record = SubscriptionRecord(
             **gateway.model_dump(exclude={"metadata"}),
-            app_id=app.app_id,
+            app_id=app.id,
             store_hash=store_hash,
             plan_code=plan.code if plan else gateway.metadata.get("plan_code"),
         )
@@ -70,12 +70,12 @@ class BillingService:
         """Re-read the gateway and overwrite local state. Recovers from a missed webhook."""
         customer_id = await self.get_customer_id(auth, create=False)
         if not customer_id:
-            return SubscriptionRecord(app_id=app.app_id, store_hash=auth.store_hash)
+            return SubscriptionRecord(app_id=app.id, store_hash=auth.store_hash)
         gateway = await self._payment.find_subscription(customer_id)
         if gateway:
             return await self.save_subscription(app, auth.store_hash, gateway)
         record = SubscriptionRecord(
-            app_id=app.app_id, store_hash=auth.store_hash, customer_id=customer_id
+            app_id=app.id, store_hash=auth.store_hash, customer_id=customer_id
         )
         await self._db.set_row(Collection.SUBSCRIPTIONS, record.key, record.model_dump(mode="json"))
         return record
@@ -102,10 +102,10 @@ class BillingService:
 
     async def list_plans(self, app: AppConfig, record: SubscriptionRecord) -> list[PlanResponse]:
         prices = await asyncio.gather(
-            *(self._payment.get_price(plan.price_id) for plan in app.paid_plans)
+            *(self._payment.get_price(str(plan.price_id)) for plan in app.paid_plans)
         )
         by_id = {price.price_id: price for price in prices if price}
-        plans = []
+        plans: list[PlanResponse] = []
         for plan in app.plans:
             price = by_id.get(plan.price_id or "")
             merged = (price.model_dump() if price else {}) | plan.model_dump(exclude_none=True)
@@ -122,16 +122,19 @@ class BillingService:
         cancel_url: str,
     ) -> CheckoutSession:
         plan = self._require_paid_plan(app, request.plan_code)
-        record = await self.get_record(app.app_id, auth.store_hash)
+        record = await self.get_record(app.id, auth.store_hash)
         if record.is_active and record.subscription_id:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
                 "Store already has an active subscription. Change the plan instead.",
             )
         customer_id = await self.get_customer_id(auth)
+
+        if not customer_id:
+            raise HTTPException(detail="Customer not found", status_code=404)
         return await self._payment.create_checkout_session(
             customer_id=customer_id,
-            price_id=plan.price_id,
+            price_id=plan.price_id or 'free',
             success_url=success_url,
             cancel_url=cancel_url,
             metadata=auth.gateway_metadata | {"plan_code": plan.code},
@@ -162,21 +165,24 @@ class BillingService:
         record = await self._require_subscription(app, auth)
         if record.price_id == plan.price_id and record.is_active:
             return record
+
+        if not record.subscription_id:
+            raise HTTPException(detail="subscription id not found", status_code=404)
         gateway = await self._payment.change_subscription_plan(
-            record.subscription_id, plan.price_id, proration_behavior
+            record.subscription_id, plan.price_id or "free", proration_behavior
         )
         return await self.save_subscription(app, auth.store_hash, gateway)
 
     async def cancel(self, app: AppConfig, auth: AuthContext, at_period_end: bool) -> SubscriptionRecord:
         record = await self._require_subscription(app, auth)
-        gateway = await self._payment.cancel_subscription(record.subscription_id, at_period_end)
+        gateway = await self._payment.cancel_subscription(str(record.subscription_id), at_period_end)
         return await self.save_subscription(app, auth.store_hash, gateway)
 
     async def resume(self, app: AppConfig, auth: AuthContext) -> SubscriptionRecord:
         record = await self._require_subscription(app, auth)
         if not record.cancel_at_period_end:
             return record
-        gateway = await self._payment.resume_subscription(record.subscription_id)
+        gateway = await self._payment.resume_subscription(str(record.subscription_id))
         return await self.save_subscription(app, auth.store_hash, gateway)
 
     async def list_invoices(
@@ -195,12 +201,12 @@ class BillingService:
         plan = app.plan(plan_code)
         if not plan:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unknown plan '{plan_code}'")
-        if plan.is_free:
+        if not plan.amount:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Plan '{plan_code}' is not purchasable")
         return plan
 
     async def _require_subscription(self, app: AppConfig, auth: AuthContext) -> SubscriptionRecord:
-        record = await self.get_record(app.app_id, auth.store_hash)
+        record = await self.get_record(app.id, auth.store_hash)
         if not record.subscription_id:
             record = await self.sync(app, auth)
         if not record.subscription_id:

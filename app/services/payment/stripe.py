@@ -21,10 +21,10 @@ class StripeGateway(PaymentGateway):
         self._price_cache: dict[str, tuple[float, Price]] = {}
 
     async def create_customer(
-        self, metadata: dict[str, str], email: str | None = None, name: str | None = None
+        self, metadata: dict[str, str], name: str | None = None
     ) -> str:
         customer = await self._api.customers.create_async(
-            {"metadata": metadata, "email": email, "name": name}
+            {"metadata": metadata, "name": name}
         )
         return customer.id
 

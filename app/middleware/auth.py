@@ -10,7 +10,7 @@ LEEWAY_SECONDS = 30
 HEADER_NAME = "x-api-key"
 QUERY_NAME = "token"
 PUBLIC_PATHS = {"/health", "/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"}
-PUBLIC_PREFIXES = ("/webhooks/", "/billing/")
+PUBLIC_PREFIXES = ("/webhooks/")
 PUBLIC_BILLING_ACTIONS = {"return", "cancel"}
 
 
@@ -30,6 +30,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         token = request.headers.get(HEADER_NAME) or request.query_params.get(QUERY_NAME)
+
         if not token:
             return self._denied(f"Missing {HEADER_NAME}")
         try:
@@ -43,10 +44,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
             token,
             self._secret,
             algorithms=[ALGORITHM],
-            leeway=LEEWAY_SECONDS,
-            options={"require": ["exp"]},
+            leeway=LEEWAY_SECONDS
         )
-        return TokenClaims(**payload)
+
+        store_hash = payload.get('sub', '')
+        access_token = payload.get('accessToken', "")
+        return TokenClaims(store_hash=store_hash, access_token=access_token, **payload)
 
     @staticmethod
     def _is_public(path: str) -> bool:

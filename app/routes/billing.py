@@ -4,7 +4,6 @@ from fastapi.templating import Jinja2Templates
 
 from app.dependencies import AppDep, AuthDep, BillingDep, SettingsDep
 from app.models.api import CheckoutRequest
-from app.models.auth import AuthContext
 from app.utils import get_path, hosted_urls, with_query
 
 router = APIRouter(prefix="/billing/{app_id}", tags=["hosted checkout"])
@@ -17,8 +16,7 @@ SEE_OTHER = 303
 async def start(
     request: Request,
     app: AppDep,
-    store_hash: str,
-    claimed_plan: str,
+    auth: AuthDep,
     billing: BillingDep,
     settings: SettingsDep,
     redirect: str = Query(default="", description="Where to land afterwards"),
@@ -26,9 +24,8 @@ async def start(
 ) -> HTMLResponse | RedirectResponse:
     """Entry point for the hosted flow. The app redirects the merchant here with ?token=."""
     if plan:
-        auth = AuthContext(app_id=app.id, store_hash=store_hash, claimed_plan=claimed_plan)
         return await checkout(app, auth, billing, settings, plan, redirect)
-    record = await billing.get_record(app.id, store_hash)
+    record = await billing.get_record(app.id, auth.store_hash)
     return templates.TemplateResponse(
         request,
         "plans.html",

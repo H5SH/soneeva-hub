@@ -4,7 +4,7 @@ One FastAPI service that owns Stripe for every BigCommerce app. Each Next app re
 here to pay, then polls `/entitlements` to know what that store is allowed to do.
 
 ```
-Next app ──redirect ?token=──▶ /billing/{app_id}/start ──▶ Stripe Checkout
+Next app ──redirect ?token=──▶ /billing/{app_id} ──▶ Stripe Checkout
                                         ▲                        │
 Next app ◀──redirect back──── /billing/{app_id}/return ◀─────────┘
 Next app ──x-api-key──▶ /v1/apps/{app_id}/entitlements        Stripe ──▶ /webhooks/stripe/{app_id}

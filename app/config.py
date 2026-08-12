@@ -31,19 +31,22 @@ class Settings(BaseSettings):
 class AppRegistry:
     """One JSON file per app under /apps, read on first use and kept in memory."""
 
-    def __init__(self, directory: Path | None = None) -> None:
-        self._dir = directory or get_path("apps")
+    def __init__(self) -> None:
+        self._dir = get_path("apps")
         self._cache: dict[str, AppConfig] = {}
 
-    def get(self, id: str) -> AppConfig | None:
-        if cached := self._cache.get(id):
+    def get(self, app_id: str) -> AppConfig | None:
+        if cached := self._cache.get(app_id):
             return cached
         
-        path = self._dir / f"{id}.json"
+        path = self._dir / f"{app_id}.json"
+        print(path, 'pattthhhh')
         if not path.is_file():
+            print('not file pattthhhh')
             return None
-        config = AppConfig(id=id, **json.loads(path.read_text()))
-        self._cache[id] = config
+        
+        config = AppConfig(id=app_id, **json.loads(path.read_text()))
+        self._cache[app_id] = config
         return config
 
     @property

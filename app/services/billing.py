@@ -104,7 +104,7 @@ class BillingService:
         prices = await asyncio.gather(
             *(self._payment.get_price(str(plan.price_id)) for plan in app.paid_plans)
         )
-        by_id = {price.price_id: price for price in prices if price}
+        by_id = {price.id: price for price in prices if price}
         plans: list[PlanResponse] = []
         for plan in app.plans:
             price = by_id.get(plan.price_id or "")

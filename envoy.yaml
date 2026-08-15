@@ -1,0 +1,89 @@
+static_resources:
+
+  listeners:
+    - name: ingress
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8080
+
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+
+                stat_prefix: ingress_http
+
+                codec_type: AUTO
+
+                route_config:
+                  name: local_routes
+
+                  virtual_hosts:
+                    - name: backend
+                      domains:
+                        - "*"
+
+                      routes:
+
+                        # gRPC
+                        - match:
+                            prefix: "/your.package.YourService/"
+                          route:
+                            cluster: grpc_backend
+
+                        # Everything else -> FastAPI
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: fastapi_backend
+
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+  clusters:
+
+    # FastAPI
+    - name: fastapi_backend
+      connect_timeout: 1s
+
+      type: STATIC
+
+      lb_policy: ROUND_ROBIN
+
+      load_assignment:
+        cluster_name: fastapi_backend
+
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 8000
+
+    # gRPC
+    - name: grpc_backend
+      connect_timeout: 1s
+
+      type: STATIC
+
+      http2_protocol_options: {}
+
+      type: STATIC
+
+      lb_policy: ROUND_ROBIN
+
+      load_assignment:
+        cluster_name: grpc_backend
+
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 50051

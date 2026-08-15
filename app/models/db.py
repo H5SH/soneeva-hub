@@ -9,6 +9,6 @@ UPDATED_AT = "updated_at"
 class Collection(StrEnum):
     """Every collection this service touches."""
 
-    CUSTOMERS = "billing_customers"
-    SUBSCRIPTIONS = "billing_subscriptions"
-    EVENTS = "billing_events"
+    CUSTOMERS = "customers"
+    SUBSCRIPTIONS = "subscriptions"
+    EVENTS = "events"

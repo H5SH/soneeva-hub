@@ -20,6 +20,6 @@ async def stripe_webhook(
     try:
         event = webhooks.parse(payload, stripe_signature)
     except ValueError as error:
-        logger.warning(f"Rejected webhook for {app.app_id}: {error}")
+        logger.warning(f"Rejected webhook for {app.id}: {error}")
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid webhook signature") from error
     return {"result": await webhooks.handle(app, event)}

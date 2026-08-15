@@ -72,7 +72,7 @@
       {% if plan.is_current %}
         <span class="cta current">Current plan</span>
       {% elif plan.price_id %}
-        <a class="cta" href="/billing/{{ app.app_id }}/checkout?plan={{ plan.code }}&token={{ token }}{% if redirect %}&redirect={{ redirect|urlencode }}{% endif %}">
+        <a class="cta" target="_blank" href="/billing/{{ app.id }}/checkout?plan={{ plan.code }}&token={{ token }}{% if redirect %}&redirect={{ redirect|urlencode }}{% endif %}">
           {% if plan.trial_days %}Start {{ plan.trial_days }}-day trial{% else %}Choose {{ plan.name }}{% endif %}
         </a>
       {% endif %}

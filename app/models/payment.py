@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class Price(BaseModel):
-    price_id: str
+    id: str
     amount: int | None = Field(default=None, description="Minor units, e.g. 1900 = $19.00")
     currency: str | None = None
     interval: str | None = None

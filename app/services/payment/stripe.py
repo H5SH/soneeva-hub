@@ -1,8 +1,9 @@
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import stripe
+from stripe.checkout import Session
 
 from app.models.payment import CheckoutSession, Invoice, PaymentMethod, Price, WebhookEvent
 from app.models.subscription import GatewaySubscription, SubscriptionStatus
@@ -175,19 +176,21 @@ class StripeGateway(PaymentGateway):
         cached = self._price_cache.get(price_id)
         if cached and cached[0] > time.monotonic():
             return cached[1]
-        try:
-            row = await self._api.prices.retrieve_async(price_id)
-        except stripe.InvalidRequestError:
-            return None
-        recurring = row.get("recurring") or {}
+
+        row = await self._api.prices.retrieve_async(price_id)
+        recurring = row.recurring
+        
         price = Price(
-            price_id=row["id"],
-            amount=row.get("unit_amount"),
-            currency=row.get("currency"),
-            interval=recurring.get("interval"),
-            interval_count=recurring.get("interval_count"),
-            trial_days=recurring.get("trial_period_days"),
+            id=row.id,
+            amount=row.unit_amount,
+            currency=row.currency
         )
+
+        if recurring:
+            price.interval = recurring.interval
+            price.interval_count = recurring.interval_count
+            price.trial_days = recurring.trial_period_days
+                    
         self._price_cache[price_id] = (time.monotonic() + PRICE_CACHE_TTL_SECONDS, price)
         return price
 
@@ -228,19 +231,26 @@ class StripeGateway(PaymentGateway):
             metadata=dict(payload.get("metadata") or {}),
         )
 
-    def _to_checkout(self, payload: dict[str, Any]) -> CheckoutSession:
-        customer = payload.get("customer")
-        subscription = payload.get("subscription")
+    def _to_checkout(self, payload: Session) -> CheckoutSession:
+        customer = payload.customer
+        customer_id = 'unknown'
+        if isinstance(customer, str):
+            customer_id = customer
+
+        subscription = payload.subscription
+
+        subscription_id = 'unknown'
+        if isinstance(subscription, str):
+            subscription_id = subscription
+
         return CheckoutSession(
-            id=payload["id"],
-            url=payload.get("url"),
-            customer_id=customer if isinstance(customer, str) else (customer or {}).get("id"),
-            subscription_id=subscription
-            if isinstance(subscription, str)
-            else (subscription or {}).get("id"),
-            status=payload.get("status"),
-            payment_status=payload.get("payment_status"),
-            metadata=dict(payload.get("metadata") or {}),
+            id=payload.id,
+            url=payload.url,
+            customer_id=customer_id,
+            subscription_id=subscription_id,
+            status=payload.status,
+            payment_status=payload.payment_status,
+            metadata=payload.metadata.to_dict() # type: ignore
         )
 
     async def _promotion_code_id(self, code: str | None) -> str | None:

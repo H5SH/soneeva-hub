@@ -50,7 +50,9 @@ class BillingService:
         return customer_id
 
     async def get_record(self, app_id: str, store_hash: str) -> SubscriptionRecord:
+        print('user2')
         row = await self._db.get_row(Collection.SUBSCRIPTIONS, f"{app_id}__{store_hash}")
+        print('user3')
         return SubscriptionRecord(**row) if row else SubscriptionRecord(app_id=app_id, store_hash=store_hash)
 
     async def save_subscription(

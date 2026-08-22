@@ -1,6 +1,6 @@
 import time
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
 import stripe
 from stripe.checkout import Session

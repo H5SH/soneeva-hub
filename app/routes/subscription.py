@@ -24,7 +24,6 @@ async def get_subscription(app: AppDep, auth: AuthDep, billing: BillingDep) -> S
 @router.get("/entitlements", response_model=EntitlementsResponse)
 async def get_entitlements(app: AppDep, auth: AuthDep, billing: BillingDep) -> EntitlementsResponse:
     """Small, cacheable answer to 'what is this store allowed to do right now'."""
-    print("user1")
     record = await billing.get_record(app.id, auth.store_hash)
     return billing.to_entitlements(app, record)
 

@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     PATH="/srv/.venv/bin:$PATH"
 
-WORKDIR /src
+WORKDIR /srv
 
 # Dependencies first so code edits do not invalidate the layer.
 COPY pyproject.toml uv.lock ./

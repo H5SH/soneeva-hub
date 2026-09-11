@@ -12,18 +12,14 @@ from app.services.webhook import WebhookService
 def get_settings(request: Request) -> Settings:
     return request.app.state.settings
 
-
 def get_registry(request: Request) -> AppRegistry:
     return request.app.state.registry
-
 
 def get_billing(request: Request) -> BillingService:
     return request.app.state.billing
 
-
 def get_webhooks(request: Request) -> WebhookService:
     return request.app.state.webhooks
-
 
 def get_app(
     app_id: Annotated[str, Path(description="Which BigCommerce app the caller is acting for")],

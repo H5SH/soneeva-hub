@@ -3,8 +3,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.auth.keys import KeyStore
+from app.auth.replay import ReplayGuard
+from app.auth.verify import TokenVerifier
 from app.config import AppRegistry, get_settings
-from app.middleware.auth import AuthMiddleware
 from app.routes import ROUTERS
 from app.services.billing import BillingService
 from app.services.db import DB
@@ -27,12 +29,15 @@ async def lifespan(app: FastAPI):
     app.state.settings = settings
     app.state.registry = AppRegistry()
     app.state.billing = billing
-    app.state.webhooks = WebhookService(db, payment, billing)
+    # Auth needs the database, so it is built here rather than at create_app() time — that
+    # ordering is why the old middleware could never reach a key store.
+    keys = KeyStore(db)
+    app.state.verifier = TokenVerifier(keys, ReplayGuard())
+    app.state.webhooks = WebhookService(db, payment, billing, keys)
     yield
 
 
 def create_app() -> FastAPI:
-    settings = get_settings()
     app = FastAPI(
         title="Payment Service",
         description=DESCRIPTION,
@@ -42,7 +47,6 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
         openapi_url="/openapi.json",
     )
-    app.add_middleware(AuthMiddleware, secret=settings.codinative_secret) # type: ignore
     for router in ROUTERS:
         app.include_router(router)
     return app
@@ -52,4 +56,4 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)

@@ -22,9 +22,10 @@ class Settings(BaseSettings):
         description="Public URL of this service. Used to build Stripe return URLs.",
     )
 
-    codinative_secret: str = Field(description="HMAC secret the apps sign their x-api-key JWT with")
     stripe_secret_key: str
-    stripe_webhook_secret: str
+    stripe_webhook_secret: str = Field(
+        description="Fallback signing secret. Prefer applications/{id}.stripe_webhook_secret."
+    )
 
 
 class AppRegistry:
@@ -39,11 +40,10 @@ class AppRegistry:
             return cached
         
         path = self._dir / f"{app_id}.json"
-        print(path, 'pattthhhh')
         if not path.is_file():
-            print('not file pattthhhh')
             return None
-        
+
+
         config = AppConfig(id=app_id, **json.loads(path.read_text()))
         self._cache[app_id] = config
         return config

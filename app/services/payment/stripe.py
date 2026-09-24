@@ -7,7 +7,7 @@ from stripe.checkout import Session
 
 from app.models.payment import CheckoutSession, Invoice, PaymentMethod, Price, WebhookEvent
 from app.models.subscription import GatewaySubscription, SubscriptionStatus
-from app.services.payment.base import PaymentGateway
+from app.services.payment.base import PaymentGateway, SignatureError
 
 PRICE_CACHE_TTL_SECONDS = 300
 LIVE_STATUSES = ("trialing", "active", "past_due", "unpaid", "paused", "incomplete")
@@ -29,8 +29,20 @@ class StripeGateway(PaymentGateway):
         )
         return customer.id
 
+    @staticmethod
+    def _quote(value: str) -> str:
+        """Escape a value for Stripe's search query language.
+
+        These come from a path segment and a signed claim, so they are not free-form user input,
+        but an unescaped quote would still silently change the query's meaning.
+        """
+        return value.replace("\\", "\\\\").replace("'", "\\'")
+
     async def find_customer(self, app_id: str, store_hash: str) -> str | None:
-        query = f"metadata['app_id']:'{app_id}' AND metadata['store_hash']:'{store_hash}'"
+        query = (
+            f"metadata['app_id']:'{self._quote(app_id)}' "
+            f"AND metadata['store_hash']:'{self._quote(store_hash)}'"
+        )
         result = await self._api.customers.search_async({"query": query, "limit": 1})
         return result.data[0].id if result.data else None
 
@@ -194,8 +206,20 @@ class StripeGateway(PaymentGateway):
         self._price_cache[price_id] = (time.monotonic() + PRICE_CACHE_TTL_SECONDS, price)
         return price
 
-    def parse_webhook(self, payload: bytes, signature: str | None) -> WebhookEvent:
-        event = stripe.Webhook.construct_event(payload, signature, self._webhook_secret)
+    def parse_webhook(
+        self, payload: bytes, signature: str | None, secret: str | None = None
+    ) -> WebhookEvent:
+        """`secret` is the app's own signing secret; the constructor's is only a fallback.
+
+        One endpoint exists per app, so a single global secret would force every app onto the
+        same Stripe account.
+        """
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, signature, secret or self._webhook_secret
+            )
+        except (stripe.SignatureVerificationError, ValueError) as error:
+            raise SignatureError(str(error)) from error
         return WebhookEvent(
             id=event["id"],
             type=event["type"],
@@ -232,16 +256,13 @@ class StripeGateway(PaymentGateway):
         )
 
     def _to_checkout(self, payload: Session) -> CheckoutSession:
+        # None, not 'unknown': complete_checkout tests `if not session.subscription_id`, and a
+        # truthy sentinel made every hosted checkout return land as "pending" instead of success.
         customer = payload.customer
-        customer_id = 'unknown'
-        if isinstance(customer, str):
-            customer_id = customer
+        customer_id = customer if isinstance(customer, str) else None
 
         subscription = payload.subscription
-
-        subscription_id = 'unknown'
-        if isinstance(subscription, str):
-            subscription_id = subscription
+        subscription_id = subscription if isinstance(subscription, str) else None
 
         return CheckoutSession(
             id=payload.id,

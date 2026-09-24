@@ -13,7 +13,7 @@ async def create_checkout_session(
 ) -> UrlResponse:
     """JSON alternative to the hosted flow: returns the payment URL for the app to redirect to."""
     destination = app.resolve_return_url(body.success_url)
-    success_url, cancel_url = hosted_urls(settings.service_base_url, app.app_id, destination)
+    success_url, cancel_url = hosted_urls(settings.service_base_url, app.id, destination)
     if body.cancel_url:
         cancel_url = app.resolve_return_url(body.cancel_url)
     session = await billing.start_checkout(app, auth, body, success_url, cancel_url)

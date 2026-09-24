@@ -18,7 +18,7 @@ async def stripe_webhook(
     """Public: authenticated by the gateway signature, not by x-api-key. One endpoint per app."""
     payload = await request.body()
     try:
-        event = webhooks.parse(payload, stripe_signature)
+        event = await webhooks.parse_for_app(app.id, payload, stripe_signature)
     except ValueError as error:
         logger.warning(f"Rejected webhook for {app.id}: {error}")
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid webhook signature") from error

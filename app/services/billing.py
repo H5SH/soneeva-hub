@@ -108,7 +108,13 @@ class BillingService:
         plans: list[PlanResponse] = []
         for plan in app.plans:
             price = by_id.get(plan.price_id or "")
-            merged = (price.model_dump() if price else {}) | plan.model_dump(exclude_none=True)
+            # Stripe wins over the static JSON. The old order let a stale `amount: 20` in the
+            # config override Stripe's `2000` minor units, so displayed prices could drift from
+            # what the merchant is actually charged. Config keeps only the fields Stripe has no
+            # opinion on — name, description, features, limits.
+            merged = plan.model_dump(exclude_none=True) | (
+                price.model_dump(exclude_none=True) if price else {}
+            )
             is_current = plan.code == record.plan_code and record.is_active
             plans.append(PlanResponse(**merged, is_current=is_current))
         return plans
@@ -201,7 +207,10 @@ class BillingService:
         plan = app.plan(plan_code)
         if not plan:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unknown plan '{plan_code}'")
-        if not plan.amount:
+        # price_id, not amount: Stripe holds the price, so a plan is purchasable when it has
+        # something to charge against. Checking the static `amount` rejected plans that are
+        # priced correctly in Stripe but carry no duplicated figure in the JSON.
+        if not plan.price_id:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Plan '{plan_code}' is not purchasable")
         return plan
 

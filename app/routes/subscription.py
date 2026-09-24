@@ -17,20 +17,20 @@ router = APIRouter(prefix="/v1/apps/{app_id}", tags=["subscription"])
 @router.get("/subscription", response_model=SubscriptionResponse)
 async def get_subscription(app: AppDep, auth: AuthDep, billing: BillingDep) -> SubscriptionResponse:
     """Full billing state for the calling store."""
-    record = await billing.get_record(app.id, auth.store_hash)
+    record = await billing.get_record(app.id, auth.tenant)
     return billing.to_response(app, record)
 
 
 @router.get("/entitlements", response_model=EntitlementsResponse)
 async def get_entitlements(app: AppDep, auth: AuthDep, billing: BillingDep) -> EntitlementsResponse:
     """Small, cacheable answer to 'what is this store allowed to do right now'."""
-    record = await billing.get_record(app.id, auth.store_hash)
+    record = await billing.get_record(app.id, auth.tenant)
     return billing.to_entitlements(app, record)
 
 
 @router.get("/plans", response_model=list[PlanResponse])
 async def list_plans(app: AppDep, auth: AuthDep, billing: BillingDep) -> list[PlanResponse]:
-    record = await billing.get_record(app.id, auth.store_hash)
+    record = await billing.get_record(app.id, auth.tenant)
     return await billing.list_plans(app, record)
 
 

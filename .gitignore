@@ -20,3 +20,4 @@ serviceAccountKey.json
 .idea/
 .vscode/
 *.log
+*ServiceAccount*

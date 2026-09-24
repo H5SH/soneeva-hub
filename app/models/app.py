@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -18,12 +20,36 @@ class PlanConfig(BaseModel):
 
 
 class AppConfig(BaseModel):
-    """One BigCommerce app: where to send the merchant back, and what it can sell."""
+    """One calling app: where to send the merchant back, and what it can sell."""
 
     id: str
     name: str
     free_plan_code: str | None = None
+    return_url: str | None = Field(
+        default=None, description="Fallback landing page when the caller supplies none."
+    )
+    allowed_return_hosts: list[str] = Field(
+        default_factory=list,
+        description="Hosts a redirect may point at. Empty means only return_url is allowed.",
+    )
     plans: list[PlanConfig]
+
+    def resolve_return_url(self, candidate: str | None) -> str:
+        """Validate a caller-supplied redirect, or fall back to the configured one.
+
+        `/return` and `/cancel` are reachable without a token — the gateway sends the browser
+        there — so an unchecked `redirect` would make this service an open redirector for
+        anyone who knows an app id. Anything not explicitly allow-listed is discarded rather
+        than rejected, so a bad value degrades to the app's own landing page.
+        """
+        if not candidate:
+            return self.return_url or "/"
+        parsed = urlparse(candidate)
+        if not parsed.scheme and not parsed.netloc:
+            return candidate if candidate.startswith("/") else self.return_url or "/"
+        if parsed.scheme in ("http", "https") and parsed.hostname in self.allowed_return_hosts:
+            return candidate
+        return self.return_url or "/"
 
     @field_validator("plans")
     @classmethod
@@ -45,4 +71,10 @@ class AppConfig(BaseModel):
 
     @property
     def paid_plans(self) -> list[PlanConfig]:
-        return [p for p in self.plans if p.amount]
+        """Keyed on price_id, not amount.
+
+        Stripe is the source of truth for price, so a plan is purchasable when it has something
+        to charge against. Filtering on the static `amount` meant a plan priced only in Stripe
+        was rejected as "not purchasable" and never had its live price fetched.
+        """
+        return [p for p in self.plans if p.price_id]

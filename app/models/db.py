@@ -9,6 +9,7 @@ UPDATED_AT = "updated_at"
 class Collection(StrEnum):
     """Every collection this service touches."""
 
+    APPLICATIONS = "applications"
     CUSTOMERS = "customers"
     SUBSCRIPTIONS = "subscriptions"
     EVENTS = "events"

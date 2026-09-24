@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, Request, status
 
+from app.auth.deps import ApiAuthDep, HostedAuthDep
 from app.config import AppRegistry, Settings
 from app.models.app import AppConfig
-from app.models.auth import AuthContext, TokenClaims
 from app.services.billing import BillingService
 from app.services.webhook import WebhookService
 
@@ -31,22 +31,13 @@ def get_app(
     return app
 
 
-def get_auth(request: Request, app: Annotated[AppConfig, Depends(get_app)]) -> AuthContext:
-    claims: TokenClaims | None = getattr(request.state, "claims", None)
-    if not claims:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing headers")
-    if claims.app_id and claims.app_id != app.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Token is not valid for this app")
-    return AuthContext(
-        app_id=app.id,
-        store_hash=claims.store_hash,
-        claimed_plan=claims.plan,
-    )
-
-
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 RegistryDep = Annotated[AppRegistry, Depends(get_registry)]
 AppDep = Annotated[AppConfig, Depends(get_app)]
-AuthDep = Annotated[AuthContext, Depends(get_auth)]
 BillingDep = Annotated[BillingService, Depends(get_billing)]
 WebhookDep = Annotated[WebhookService, Depends(get_webhooks)]
+
+# Auth is declared per route rather than applied globally: a route is public precisely when it
+# asks for neither of these, instead of being matched against a list of path shapes.
+AuthDep = ApiAuthDep
+HostedDep = HostedAuthDep

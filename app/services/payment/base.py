@@ -5,6 +5,10 @@ from app.models.payment import CheckoutSession, Invoice, PaymentMethod, Price, W
 from app.models.subscription import GatewaySubscription
 
 
+class SignatureError(Exception):
+    """The provider rejected the webhook signature. Distinct from a bug in our own handling."""
+
+
 class PaymentGateway(ABC):
     """Provider contract. Everything returned is provider-neutral, so the gateway is swappable."""
 
@@ -73,8 +77,14 @@ class PaymentGateway(ABC):
     async def get_price(self, price_id: str) -> Price | None: ...
 
     @abstractmethod
-    def parse_webhook(self, payload: bytes, signature: str | None) -> WebhookEvent:
-        """Verify the provider signature and normalise the event. Raises on a bad signature."""
+    def parse_webhook(
+        self, payload: bytes, signature: str | None, secret: str | None = None
+    ) -> WebhookEvent:
+        """Verify the provider signature and normalise the event.
+
+        Raises SignatureError on a bad signature. `secret` overrides the gateway default so each
+        app can carry its own signing secret.
+        """
 
     @abstractmethod
     def parse_subscription(self, payload: dict[str, Any]) -> GatewaySubscription:

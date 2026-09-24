@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.dependencies import AppDep, AuthDep, BillingDep, SettingsDep
+from app.dependencies import AppDep, BillingDep, HostedDep, SettingsDep
 from app.models.api import CheckoutRequest
 from app.utils import get_path, hosted_urls, with_query
 
@@ -16,16 +16,16 @@ SEE_OTHER = 303
 async def start(
     request: Request,
     app: AppDep,
-    auth: AuthDep,
+    auth: HostedDep,
     billing: BillingDep,
     settings: SettingsDep,
     redirect: str = Query(default="", description="Where to land afterwards"),
-    plan: str | None = Query(default=None, description="Skip the picker and go straight to payment")
+    plan: str | None = Query(default=None, description="Skip the picker and go straight to payment"),
 ) -> HTMLResponse | RedirectResponse:
     """Entry point for the hosted flow. The app redirects the merchant here with ?token=."""
     if plan:
         return await checkout(app, auth, billing, settings, plan, redirect)
-    record = await billing.get_record(app.id, auth.store_hash)
+    record = await billing.get_record(app.id, auth.tenant)
     return templates.TemplateResponse(
         request,
         "plans.html",
@@ -38,17 +38,19 @@ async def start(
         },
     )
 
+
 @router.get("/checkout")
 async def checkout(
     app: AppDep,
-    auth: AuthDep,
+    auth: HostedDep,
     billing: BillingDep,
     settings: SettingsDep,
     plan: str = Query(description="Plan code to buy"),
     redirect: str = Query(default=""),
 ) -> RedirectResponse:
     """Creates the payment session and hands the merchant to the gateway's hosted page."""
-    success_url, cancel_url = hosted_urls(settings.service_base_url, app.id, redirect)
+    destination = app.resolve_return_url(redirect)
+    success_url, cancel_url = hosted_urls(settings.service_base_url, app.id, destination)
     session = await billing.start_checkout(
         app, auth, CheckoutRequest(plan_code=plan), success_url, cancel_url
     )
@@ -62,10 +64,14 @@ async def checkout_return(
     session_id: str = Query(description="Gateway checkout session id"),
     redirect: str = Query(default=""),
 ) -> RedirectResponse:
-    """Public: the gateway sends the merchant here. Syncs state, then bounces back to the app."""
+    """Public: the gateway sends the merchant here. Syncs state, then bounces back to the app.
+
+    Unauthenticated by necessity — the browser arrives from Stripe with no token — so the
+    redirect target is validated against the app's allow-list rather than trusted.
+    """
     record = await billing.complete_checkout(app, session_id)
     destination = with_query(
-        redirect,
+        app.resolve_return_url(redirect),
         billing="success" if record else "pending",
         plan=record.plan_code if record else "",
     )
@@ -73,19 +79,17 @@ async def checkout_return(
 
 
 @router.get("/cancel")
-async def checkout_cancel(
-    app: AppDep, redirect: str = Query(default=None)
-) -> RedirectResponse:
+async def checkout_cancel(app: AppDep, redirect: str = Query(default="")) -> RedirectResponse:
     """Public: the merchant backed out of the hosted payment page."""
     return RedirectResponse(
-        with_query(redirect, billing="cancelled"), status_code=SEE_OTHER
+        with_query(app.resolve_return_url(redirect), billing="cancelled"), status_code=SEE_OTHER
     )
 
 
 @router.get("/portal")
 async def portal(
-    app: AppDep, auth: AuthDep, billing: BillingDep, redirect: str = Query(default=None)
+    app: AppDep, auth: HostedDep, billing: BillingDep, redirect: str = Query(default="")
 ) -> RedirectResponse:
     """Sends the merchant to the gateway's self-service billing page."""
-    url = await billing.portal_url(auth, redirect)
+    url = await billing.portal_url(auth, app.resolve_return_url(redirect))
     return RedirectResponse(url, status_code=SEE_OTHER)

@@ -1,7 +1,7 @@
 [project]
 name = "payment-service"
 version = "0.1.0"
-description = "Central Stripe billing service for BigCommerce apps"
+description = "Central Stripe billing service for the Codinative apps"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",
@@ -9,7 +9,11 @@ dependencies = [
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
     "stripe>=12.0.0",
-    "pyjwt>=2.9.0",
+    "pyjwt[crypto]>=2.9.0",
+    # Capped below 47: that release dropped the macOS universal2 wheel, so on an Intel Mac
+    # anything newer compiles from Rust + OpenSSL. 46.x is current and has Ed25519.
+    "cryptography>=44,<47",
+    "python-dotenv>=1.0.0",
     "firebase-admin>=6.5.0",
     "jinja2>=3.1.4",
 ]
@@ -20,6 +24,7 @@ dev = [
     "pyright>=1.1.380",
     "httpx>=0.27.0",
     "pytest>=8.3.0",
+    "pytest-asyncio>=1.4.0",
 ]
 
 [tool.uv]
@@ -32,3 +37,7 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 ignore = ["B008"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

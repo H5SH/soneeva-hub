@@ -1,0 +1,39 @@
+{#
+  Single-series column chart.
+
+  Laid out with flex rather than a stretched SVG: a viewBox scaled to the container makes
+  the 24px bar cap and the 2px gap meaningless, because both stretch with the width. In CSS
+  they are exactly what they say.
+
+  One hue (magnitude is sequential), no legend (one series — the heading names it), hairline
+  solid gridlines, and only the peak is labelled.
+#}
+{% macro columns(series, height=150) %}
+  {% set peak = series | map(attribute=1) | max %}
+  {% set scale = peak if peak > 0 else 1 %}
+  <figure style="margin:0">
+    <div style="position:relative; height:{{ height }}px">
+      {# Recessive grid: hairline, solid, one step off the surface. #}
+      {% for fraction in [0, 0.5, 1] %}
+      <div style="position:absolute; left:0; right:0; top:{{ (height * fraction) | round | int }}px;
+                  height:1px; background:var(--grid)"></div>
+      {% endfor %}
+
+      <div style="position:absolute; inset:0; display:flex; align-items:flex-end; gap:2px">
+        {% for day, amount in series %}
+        {% set h = (amount / scale * (height - 10)) | round | int %}
+        <div title="{{ day }} — ${{ '%.2f'|format(amount / 100) }}"
+             style="flex:1 1 0; max-width:24px; min-width:3px; height:{{ h if h > 1 else 1 }}px;
+                    background:{{ 'var(--bar)' if amount else 'var(--track)' }};
+                    border-radius:2px 2px 0 0"></div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <figcaption style="display:flex; justify-content:space-between; margin-top:8px">
+      <span class="label">{{ series[0][0] }}</span>
+      <span class="label">peak ${{ '%.0f'|format(peak / 100) }}</span>
+      <span class="label">{{ series[-1][0] }}</span>
+    </figcaption>
+  </figure>
+{% endmacro %}

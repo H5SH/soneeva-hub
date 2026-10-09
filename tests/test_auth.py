@@ -1,7 +1,7 @@
 import pytest
 
-from app.auth.verify import AuthError
 from app.models.auth import Audience
+from app.services.tokens.verify import AuthError
 from tests.conftest import keypair
 
 
@@ -73,9 +73,9 @@ async def test_unknown_kid_is_rejected(verifier, sign):
 
 @pytest.mark.asyncio
 async def test_disabled_application_is_rejected(application, sign):
-    from app.auth.keys import KeyStore
-    from app.auth.replay import ReplayGuard
-    from app.auth.verify import TokenVerifier
+    from app.services.tokens.keys import KeyStore
+    from app.services.tokens.replay import ReplayGuard
+    from app.services.tokens.verify import TokenVerifier
     from tests.conftest import APP_ID, FakeDatabase
 
     application["status"] = "disabled"
@@ -108,9 +108,9 @@ async def test_api_token_cannot_be_used_as_a_url_token(verifier, sign):
 @pytest.mark.asyncio
 async def test_rotated_key_still_verifies_while_retiring(application, sign, keys):
     """Rotation must not invalidate tokens already in flight."""
-    from app.auth.keys import KeyStore
-    from app.auth.replay import ReplayGuard
-    from app.auth.verify import TokenVerifier
+    from app.services.tokens.keys import KeyStore
+    from app.services.tokens.replay import ReplayGuard
+    from app.services.tokens.verify import TokenVerifier
     from tests.conftest import APP_ID, FakeDatabase
 
     _, new_public = keypair()

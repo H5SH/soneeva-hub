@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 
 from app.dependencies import AppDep, BillingDep, HostedDep, SettingsDep
 from app.models.api import CheckoutRequest
-from app.utils import get_path, hosted_urls, with_query
+from app.services.tokens.deps import require_hosted_token
+from app.templating import templates
+from app.utils import hosted_urls, with_query
 
-router = APIRouter(prefix="/billing/{app_id}", tags=["hosted checkout"])
-templates = Jinja2Templates(directory=get_path("app", "templates"))
+router = APIRouter(
+    prefix="/billing/{app_id}", tags=["hosted checkout"], dependencies=[Depends(require_hosted_token)]
+)
 
 SEE_OTHER = 303
 

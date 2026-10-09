@@ -77,6 +77,36 @@ class PaymentGateway(ABC):
     async def get_price(self, price_id: str) -> Price | None: ...
 
     @abstractmethod
+    async def create_price(
+        self,
+        app_id: str,
+        plan_code: str,
+        name: str,
+        amount: int,
+        currency: str,
+        interval: str,
+    ) -> tuple[str, str]:
+        """Create a product and a recurring price. Returns (product_id, price_id)."""
+
+    @abstractmethod
+    async def revenue_by_day(self, days: int) -> list[tuple[str, int]]:
+        """Succeeded charges per day, oldest first, as (ISO date, minor units)."""
+
+    @abstractmethod
+    async def can_write_products(self) -> tuple[bool, str]:
+        """Whether this key may create products and prices, and why not when it may not."""
+
+    @abstractmethod
+    async def create_full_discount(
+        self, code: str, app_id: str, product_ids: list[str], max_redemptions: int | None
+    ) -> tuple[str, str]:
+        """A 100%-off coupon exposed as a promotion code. Returns (coupon_id, promo_id)."""
+
+    @abstractmethod
+    async def delete_promotion_code(self, promotion_code_id: str) -> None:
+        """Deactivate a promotion code so it stops being redeemable."""
+
+    @abstractmethod
     def parse_webhook(
         self, payload: bytes, signature: str | None, secret: str | None = None
     ) -> WebhookEvent:

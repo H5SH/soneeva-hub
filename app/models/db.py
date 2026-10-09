@@ -10,6 +10,9 @@ class Collection(StrEnum):
     """Every collection this service touches."""
 
     APPLICATIONS = "applications"
+    USERS = "users"
+    ROLES = "roles"
+    COUPONS = "coupons"
     CUSTOMERS = "customers"
     SUBSCRIPTIONS = "subscriptions"
     EVENTS = "events"

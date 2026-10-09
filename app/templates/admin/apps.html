@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+{% block title %}Apps{% endblock %}
+{% block content %}
+<header style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px">
+  <div>
+    <h1>Apps</h1>
+    <p class="sub">Every app this service bills for.</p>
+  </div>
+  {% if user.may(Scope.APP_CREATE) %}
+  <a href="/admin/apps/new" class="btn">New app</a>
+  {% endif %}
+</header>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Name</th><th>Id</th><th class="num">Plans</th><th class="num">Keys</th><th></th></tr></thead>
+    <tbody>
+      {% for app in apps %}
+      <tr>
+        <td><a href="/admin/apps/{{ app.id }}">{{ app.name }}</a></td>
+        <td><code>{{ app.id }}</code></td>
+        <td class="num">{{ app.plans | length }}</td>
+        <td class="num">{{ key_counts.get(app.id, 0) or "—" }}</td>
+        <td style="text-align:right">
+          {% if not key_counts.get(app.id) %}<span class="label">no key yet</span>{% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty">
+        Nothing here yet.{% if user.may(Scope.APP_CREATE) %} <a href="/admin/apps/new">Create an app</a>.{% endif %}
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

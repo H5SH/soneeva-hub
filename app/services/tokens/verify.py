@@ -1,8 +1,8 @@
 import jwt
 
-from app.auth.keys import KeyStore
-from app.auth.replay import ReplayGuard
 from app.models.auth import Application, Audience, TokenClaims
+from app.services.tokens.keys import KeyStore
+from app.services.tokens.replay import ReplayGuard
 
 ALGORITHMS = ["EdDSA"]
 LEEWAY_SECONDS = 30

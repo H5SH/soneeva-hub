@@ -128,7 +128,7 @@ that one import.
 ```bash
 uv sync
 cp .env.example .env      # fill in API_SECRET and the Stripe keys
-uv run uvicorn app.main:app --reload --port 8080
+uv run python main.py          # or: uv run uvicorn main:app --reload --port 8080
 ```
 
 Firestore uses application default credentials — set `GOOGLE_APPLICATION_CREDENTIALS` locally, or

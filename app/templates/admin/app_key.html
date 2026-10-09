@@ -1,0 +1,38 @@
+{% extends "admin/base.html" %}
+{% block title %}Key issued{% endblock %}
+{% block content %}
+<header>
+  <h1>Key issued</h1>
+  <p class="sub">{{ app_id }} — key {{ kid }}</p>
+</header>
+
+<p class="alert">
+  This is the only time the private key is shown. It is not stored and cannot be recovered —
+  if you lose it, rotate again.
+</p>
+
+<div class="panel">
+  <header><h2>Put this in the app's environment</h2></header>
+  <div class="body">
+    <textarea id="env" rows="6" readonly
+              style="width:100%; font-family:ui-monospace, monospace; font-size:12px;
+                     border:1px solid var(--border); padding:12px">{{ env }}</textarea>
+    <div style="margin-top:12px">
+      <button class="btn" id="copy">Copy</button>
+      <a class="btn secondary" style="text-decoration:none" href="/admin/apps/{{ app_id }}">Done</a>
+    </div>
+  </div>
+</div>
+
+<p class="note">
+  Any previous key still verifies until its tokens expire, so the app keeps working while you
+  deploy the new one.
+</p>
+
+<script>
+  document.getElementById("copy").addEventListener("click", async () => {
+    await navigator.clipboard.writeText(document.getElementById("env").value);
+    document.getElementById("copy").textContent = "Copied";
+  });
+</script>
+{% endblock %}

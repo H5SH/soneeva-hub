@@ -1,6 +1,5 @@
 import logging
 
-from app.auth.keys import KeyStore
 from app.models.app import AppConfig
 from app.models.db import Collection
 from app.models.payment import WebhookEvent
@@ -8,6 +7,7 @@ from app.models.subscription import GatewaySubscription
 from app.services.billing import BillingService
 from app.services.db import Database
 from app.services.payment import PaymentGateway, SignatureError
+from app.services.tokens.keys import KeyStore
 
 logger = logging.getLogger(__name__)
 

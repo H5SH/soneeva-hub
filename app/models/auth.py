@@ -30,7 +30,7 @@ class PublicKey(BaseModel):
 
 
 class Application(BaseModel):
-    """A calling app's credentials. Plan config stays in the version-controlled apps/*.json."""
+    """A calling app's credentials. Plans live on the same Firestore document."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -86,11 +86,9 @@ class AuthContext(BaseModel):
     def store_hash(self) -> str:
         """The persisted spelling of `tenant`.
 
-        Not redundancy: `store_hash` is baked into live Firestore document ids
-        (`{app_id}__{store_hash}`) and into Stripe customer metadata and `client_reference_id`.
-        Renaming the stored field would orphan every existing customer and subscription, so the
-        persistence layer keeps the old name while the token carries the wider `tenant` — which
-        may now be a shop domain or a Firebase uid, not only a BigCommerce store hash.
+        `store_hash` is baked into live Firestore ids and Stripe metadata, so renaming it
+        would orphan existing customers. Storage keeps the old name; the token carries the
+        wider `tenant`, which may be a shop domain or uid.
         """
         return self.tenant
 

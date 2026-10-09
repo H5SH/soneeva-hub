@@ -1,0 +1,118 @@
+{% extends "admin/base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<div style="max-width:24rem; margin:8vh auto">
+  <h1>Payment Service</h1>
+  <p class="sub">Sign in to manage apps, plans and coupons.</p>
+
+  {% if error %}<p class="alert" role="alert" style="margin-top:24px">{{ error }}</p>{% endif %}
+
+  <div class="panel" style="margin-top:24px">
+    <div class="body stack">
+      <div>
+        <label class="label" for="email">Email</label>
+        <input id="email" type="email" autocomplete="username" style="margin-top:4px">
+      </div>
+      <div id="password-field">
+        <label class="label" for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" style="margin-top:4px">
+      </div>
+
+      <button id="submit" class="btn" style="width:100%">Sign in</button>
+
+      <p role="status" id="status" class="label" style="min-height:1.2em"></p>
+
+      <p style="margin:0">
+        <a href="#" id="forgot">Forgotten your password?</a>
+        <a href="#" id="back" hidden>Back to sign in</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- The ID token is posted as a form field so the browser follows a normal redirect and the
+       session cookie is set server-side. Nothing is kept client-side. -->
+  <form id="handoff" method="post" action="/admin/session" hidden>
+    <input type="hidden" name="id_token" id="id_token">
+    <input type="hidden" name="next" value="{{ next }}">
+  </form>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail }
+    from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+  const config = {{ firebase | tojson }};
+  const el = (id) => document.getElementById(id);
+  const status = el("status");
+
+  if (!config.apiKey) {
+    status.textContent = "Firebase is not configured on this service.";
+    el("submit").disabled = true;
+  } else {
+    const auth = getAuth(initializeApp(config));
+    let resetting = false;
+
+    // Firebase returns codes, not sentences. Anything unexpected stays generic rather than
+    // leaking whether an account exists.
+    const readable = (code) => ({
+      "auth/invalid-email": "That email address is not valid.",
+      "auth/invalid-credential": "Email or password is incorrect.",
+      "auth/wrong-password": "Email or password is incorrect.",
+      "auth/user-not-found": "Email or password is incorrect.",
+      "auth/user-disabled": "This account is disabled.",
+      "auth/too-many-requests": "Too many attempts. Try again shortly.",
+      "auth/missing-password": "Enter your password.",
+    }[code] ?? "Sign-in failed. Try again.");
+
+    el("forgot").addEventListener("click", (e) => {
+      e.preventDefault();
+      resetting = true;
+      el("password-field").hidden = true;
+      el("submit").textContent = "Send reset link";
+      el("forgot").hidden = true;
+      el("back").hidden = false;
+      status.textContent = "";
+    });
+
+    el("back").addEventListener("click", (e) => {
+      e.preventDefault();
+      resetting = false;
+      el("password-field").hidden = false;
+      el("submit").textContent = "Sign in";
+      el("forgot").hidden = false;
+      el("back").hidden = true;
+      status.textContent = "";
+    });
+
+    el("submit").addEventListener("click", async () => {
+      const email = el("email").value.trim();
+      if (!email) { status.textContent = "Enter your email address."; return; }
+
+      el("submit").disabled = true;
+      try {
+        if (resetting) {
+          await sendPasswordResetEmail(auth, email);
+          // Said the same way whether or not the account exists, so this cannot be used to
+          // find out who has one.
+          status.textContent = "If that address has an account, a reset link is on its way.";
+        } else {
+          status.textContent = "Signing in…";
+          const result = await signInWithEmailAndPassword(auth, email, el("password").value);
+          el("id_token").value = await result.user.getIdToken();
+          el("handoff").submit();
+          return;
+        }
+      } catch (error) {
+        status.textContent = resetting
+          ? "If that address has an account, a reset link is on its way."
+          : readable(error.code);
+      }
+      el("submit").disabled = false;
+    });
+
+    el("password").addEventListener("keydown", (e) => { if (e.key === "Enter") el("submit").click(); });
+    el("email").addEventListener("keydown", (e) => { if (e.key === "Enter") el("submit").click(); });
+  }
+</script>
+{% endblock %}

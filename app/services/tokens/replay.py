@@ -6,10 +6,8 @@ MAX_ENTRIES = 20_000
 class ReplayGuard:
     """Rejects a jti that has already been seen.
 
-    Tokens are short-lived, so an id only has to be remembered until its own expiry — an
-    in-process set is enough and costs nothing. It is per-instance, which means a replay could
-    still land on a different container; that narrows the window rather than closing it, and
-    closing it fully would need shared state for very little gain at this size.
+    Tokens expire in 60s, so in-process memory is enough. Per-instance, so a replay could land
+    on another container — shared state would close that for very little gain at this size.
     """
 
     def __init__(self) -> None:

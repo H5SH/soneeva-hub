@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+{% block title %}New app{% endblock %}
+{% block content %}
+<header>
+  <h1>New app</h1>
+  <p class="sub">Identity first. Plans and a key come next, on the app's page.</p>
+</header>
+
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+
+<form method="post" action="/admin/apps" class="panel">
+  <div class="body stack">
+    <div>
+      <label class="label" for="app_id">App id</label>
+      <input id="app_id" name="app_id" type="text" required placeholder="snapback"
+             pattern="[A-Za-z0-9_-]+" style="margin-top:4px">
+      <p class="label" style="margin-top:4px; text-transform:none">
+        Goes in the calling app's <code>PAYMENT_APPLICATION_ID</code>. Cannot be changed later.
+      </p>
+    </div>
+    <div>
+      <label class="label" for="name">Name</label>
+      <input id="name" name="name" type="text" placeholder="Snapback" style="margin-top:4px">
+    </div>
+    <div>
+      <label class="label" for="return_url">Return URL</label>
+      <input id="return_url" name="return_url" type="text"
+             placeholder="https://snapback.example.com/plans" style="margin-top:4px">
+      <p class="label" style="margin-top:4px; text-transform:none">
+        Where a merchant lands after checkout when the caller names nowhere else.
+      </p>
+    </div>
+    <div>
+      <label class="label" for="hosts">Allowed return hosts</label>
+      <input id="hosts" name="hosts" type="text" placeholder="snapback.example.com, localhost"
+             style="margin-top:4px">
+      <p class="label" style="margin-top:4px; text-transform:none">
+        Comma separated. Anything not listed is discarded, so this cannot become an open redirector.
+      </p>
+    </div>
+    <div>
+      <button class="btn">Create app</button>
+      <a href="/admin" class="btn secondary" style="text-decoration:none">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endblock %}

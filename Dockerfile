@@ -15,7 +15,6 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 COPY app ./app
-COPY apps ./apps
 COPY main.py ./
 
 RUN useradd --create-home --uid 1001 service && chown -R service:service /srv

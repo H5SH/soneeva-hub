@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Payment Service{% endblock %}</title>
+<style>
+  :root {
+    --ground:#f4faf8; --paper:#fff; --surface:#e0faf6; --border:#c3e8e1;
+    --ink:#0f1a19; --muted:#5a6b68; --faint:#8aa39e;
+    --primary:#0b3f3a; --on-primary:#d2f7f1; --danger:#9b2f26;
+    /* One hue, light to dark — sequential, for magnitude. */
+    --bar:#2e8072; --track:#e0faf6; --grid:#dbeeea;
+    --sidebar:248px; --rail:60px;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink);
+    font:14px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button, input, select, textarea { border-radius:0; font:inherit; color:inherit; }
+  a { color:var(--primary); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.92em; }
+
+  .label { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+
+  /* ── shell ────────────────────────────────────────────────────────────── */
+  .shell { display:flex; min-height:100%; }
+  nav.side {
+    width:var(--sidebar); flex-shrink:0; background:var(--paper);
+    border-right:1px solid var(--border); display:flex; flex-direction:column;
+    position:sticky; top:0; height:100vh;
+  }
+  nav.side .brand {
+    height:64px; display:flex; align-items:center; gap:8px; padding:0 20px;
+    border-bottom:1px solid var(--border); font-size:15px; letter-spacing:-.01em;
+  }
+  nav.side ul { list-style:none; margin:0; padding:8px 0; flex:1; }
+  nav.side a.item {
+    display:flex; align-items:center; gap:10px; height:40px; padding:0 20px;
+    color:var(--ink); transition:background .15s;
+  }
+  nav.side a.item:hover { background:var(--surface); text-decoration:none; }
+  /* Full-bleed solid block for the current page — not an inset pill. */
+  nav.side a.item[aria-current=page] { background:var(--primary); color:var(--on-primary); }
+  nav.side a.item svg { width:16px; height:16px; flex-shrink:0; }
+  nav.side .foot { border-top:1px solid var(--border); padding:16px 20px; }
+
+  .toggle {
+    margin-left:auto; display:grid; place-items:center; width:26px; height:26px; flex-shrink:0;
+    border:1px solid var(--border); background:var(--paper); color:var(--muted); cursor:pointer;
+  }
+  .toggle:hover { background:var(--surface); color:var(--ink); }
+  .toggle svg { width:13px; height:13px; }
+
+  /* Collapsed. The class is on <body> from a cookie read server-side, so the first paint is
+     already the right width — a script-only toggle flashes the wide rail on every load. */
+  body.rail nav.side { width:var(--rail); }
+  body.rail .wide { display:none; }
+  body.rail nav.side .brand { padding:0; justify-content:center; }
+  body.rail nav.side a.item { padding:0; justify-content:center; }
+  body.rail nav.side .foot { padding:12px 8px; }
+  body.rail .toggle { margin:0; }
+  body.rail .toggle svg { transform:scaleX(-1); }
+  .rail-icon { display:none; }
+  body.rail .rail-icon { display:block; }
+
+  main { flex:1; min-width:0; }
+  /* Centred in the main column, not pinned to the sidebar. */
+  .wrap { max-width:68rem; margin:0 auto; padding:32px 40px 56px; }
+  @media (max-width:900px) { .wrap { padding:24px 20px 40px; } }
+  .stack > * + * { margin-top:20px; }
+
+  h1 { font-size:24px; margin:0; font-weight:550; letter-spacing:-.015em; }
+  h2 { font-size:15px; margin:0; font-weight:550; }
+  .sub { margin:6px 0 0; color:var(--muted); }
+
+  /* ── surfaces ─────────────────────────────────────────────────────────── */
+  .panel { border:1px solid var(--border); background:var(--paper); }
+  .panel > header { padding:16px 20px; border-bottom:1px solid var(--border); }
+  .panel > .body { padding:20px; }
+
+  .grid { display:grid; gap:16px; }
+  .cols-4 { grid-template-columns:repeat(auto-fit, minmax(13rem, 1fr)); }
+
+  /* Stat tile: label, value, caption. Proportional figures — tabular is for columns. */
+  .tile { border:1px solid var(--border); background:var(--paper); padding:18px 20px; }
+  .tile .value { font-size:30px; font-weight:550; letter-spacing:-.02em; margin-top:6px; }
+  .tile .cap { color:var(--muted); margin-top:4px; font-size:13px; }
+  .hero .value { font-size:48px; line-height:1.1; }
+
+  /* ── controls ─────────────────────────────────────────────────────────── */
+  .btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    height:36px; padding:0 14px;
+    border:1px solid var(--primary); background:var(--primary); color:var(--on-primary);
+    cursor:pointer; transition:background .15s;
+  }
+  .btn:hover { background:#0f544d; text-decoration:none; }
+  .btn.secondary { background:var(--paper); color:var(--ink); border-color:var(--border); }
+  .btn.secondary:hover { background:var(--surface); }
+  .btn.quiet { height:30px; padding:0 10px; font-size:13px; }
+  .btn.warn { border-color:var(--danger); color:var(--danger); background:var(--paper); }
+  .btn.warn:hover { background:#fbeceb; }
+  .btn:disabled { opacity:.4; cursor:default; }
+
+  input[type=text], input[type=email], input[type=password], input[type=number], select, textarea {
+    height:36px; width:100%; padding:0 10px; border:1px solid var(--border); background:var(--paper);
+  }
+  textarea { height:auto; padding:10px; }
+  select[multiple] { height:auto; padding:6px 10px; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--primary); }
+  .field > .label { display:block; margin-bottom:5px; }
+  .hint { font-size:12px; color:var(--muted); margin:6px 0 0; }
+
+  .alert { border:1px solid var(--danger); color:var(--danger); padding:10px 14px; }
+  .note { border:1px solid var(--border); background:var(--surface); padding:10px 14px; }
+
+  /* ── tables ───────────────────────────────────────────────────────────── */
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:11px 20px; text-align:left; border-bottom:1px solid var(--border); vertical-align:middle; }
+  th { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:400; }
+  tbody tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--ground); }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .empty { padding:40px 20px; text-align:center; color:var(--muted); }
+
+  /* ── skeletons ────────────────────────────────────────────────────────── */
+  .sk { background:var(--surface); position:relative; overflow:hidden; }
+  .sk::after {
+    content:""; position:absolute; inset:0; transform:translateX(-100%);
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
+    animation:sweep 1.2s infinite;
+  }
+  @keyframes sweep { to { transform:translateX(100%); } }
+  @media (prefers-reduced-motion:reduce) { .sk::after { animation:none; } }
+  .sk-line { height:11px; }
+  .sk-value { height:30px; width:4rem; margin-top:6px; }
+  .sk-chart { height:150px; }
+</style>
+{% block head %}{% endblock %}
+</head>
+{% set rail = request.cookies.get("ps_rail") == "1" %}
+<body{% if rail %} class="rail"{% endif %}>
+{% if user %}
+<div class="shell">
+  <nav class="side">
+    <div class="brand">
+      <span class="wide">Payment Service</span>
+      <button class="toggle" id="rail" aria-label="Collapse or expand the sidebar"
+              aria-expanded="{{ "false" if rail else "true" }}">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M9.5 3.5 5 8l4.5 4.5"/>
+        </svg>
+      </button>
+    </div>
+    <ul>
+      <li><a class="item" href="/admin" data-sk="dashboard" title="Dashboard"
+             {% if nav == 'dashboard' %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="1.5" y="1.5" width="5" height="5"/><rect x="9.5" y="1.5" width="5" height="5"/>
+          <rect x="1.5" y="9.5" width="5" height="5"/><rect x="9.5" y="9.5" width="5" height="5"/>
+        </svg><span class="wide">Dashboard</span></a></li>
+
+      {% if user.may(Scope.APP_VIEW) %}
+      <li><a class="item" href="/admin/apps" data-sk="table" title="Apps"
+             {% if nav == 'apps' %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M8 1.5 14.5 5 8 8.5 1.5 5 8 1.5Z"/><path d="M1.5 11 8 14.5 14.5 11"/>
+        </svg><span class="wide">Apps</span></a></li>
+      {% endif %}
+
+      {% if user.may(Scope.USER_VIEW) %}
+      <li><a class="item" href="/admin/users" data-sk="table" title="People"
+             {% if nav == 'users' %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="6" cy="5" r="2.6"/><path d="M1.5 14c0-2.5 2-4.2 4.5-4.2s4.5 1.7 4.5 4.2"/>
+          <path d="M11 3.2a2.6 2.6 0 0 1 0 5"/><path d="M12.2 9.9c1.4.5 2.3 1.9 2.3 4.1"/>
+        </svg><span class="wide">People</span></a></li>
+      <li><a class="item" href="/admin/roles" data-sk="table" title="Roles"
+             {% if nav == 'roles' %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M8 1.5 14 4v4.5c0 3.4-2.6 5.4-6 6-3.4-.6-6-2.6-6-6V4L8 1.5Z"/>
+        </svg><span class="wide">Roles</span></a></li>
+      {% endif %}
+
+      <li><a class="item" href="/admin/guide" data-sk="prose" title="Integration"
+             {% if nav == 'guide' %}aria-current="page"{% endif %}>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M3 2h7l3 3v9H3V2Z"/><path d="M10 2v3h3"/><path d="M5.5 8h5M5.5 10.5h5"/>
+        </svg><span class="wide">Integration</span></a></li>
+    </ul>
+    <div class="foot">
+      <div class="wide">
+        <p class="label">{{ user.role or "no role" }}</p>
+        <p style="margin:4px 0 10px; font-size:13px; word-break:break-all">{{ user.email }}</p>
+      </div>
+      <form method="post" action="/admin/logout">
+        <button class="btn secondary quiet" style="width:100%" title="Sign out">
+          <span class="wide">Sign out</span>
+          <svg class="rail-icon" viewBox="0 0 16 16" width="14" height="14" fill="none"
+               stroke="currentColor" stroke-width="1.5">
+            <path d="M6 14H3V2h3"/><path d="M10 11l3-3-3-3"/><path d="M13 8H6"/>
+          </svg>
+        </button>
+      </form>
+    </div>
+  </nav>
+  <main><div class="wrap stack" id="main">{% block content %}{% endblock %}</div></main>
+</div>
+<script>
+  // Collapse. The cookie is what the server reads on the next render, so the two agree and
+  // the sidebar never changes width after paint.
+  document.getElementById("rail").addEventListener("click", (event) => {
+    const railed = document.body.classList.toggle("rail");
+    event.currentTarget.setAttribute("aria-expanded", railed ? "false" : "true");
+    document.cookie = `ps_rail=${railed ? 1 : 0};path=/;max-age=31536000;samesite=lax`;
+  });
+
+  // Every page is rendered on the server, so a click waits on Firestore with the old page
+  // still showing. Painting the destination's shape immediately is the only honest skeleton
+  // a multi-page app can have.
+  const SHAPES = {
+    dashboard: `<div class="sk sk-line" style="width:9rem;height:24px"></div>
+      <div class="panel"><div class="body"><div class="sk sk-chart"></div></div></div>
+      <div class="grid cols-4">${'<div class="tile"><div class="sk sk-line" style="width:3rem"></div><div class="sk sk-value"></div></div>'.repeat(4)}</div>`,
+    table: `<div class="sk sk-line" style="width:7rem;height:24px"></div>
+      <div class="panel">${'<div style="padding:14px 20px;border-bottom:1px solid var(--border)"><div class="sk sk-line"></div></div>'.repeat(6)}</div>`,
+    prose: `<div class="sk sk-line" style="width:11rem;height:24px"></div>
+      <div class="panel"><div class="body" style="display:grid;gap:12px">${'<div class="sk sk-line"></div>'.repeat(8)}</div></div>`,
+  };
+  for (const link of document.querySelectorAll("a.item[data-sk]")) {
+    link.addEventListener("click", (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || link.ariaCurrent === "page") return;
+      document.getElementById("main").innerHTML = SHAPES[link.dataset.sk];
+    });
+  }
+</script>
+{% else %}
+<div class="wrap stack">{% block anon %}{{ self.content() }}{% endblock %}</div>
+{% endif %}
+</body>
+</html>

@@ -10,6 +10,9 @@ class PlanConfig(BaseModel):
     name: str
     description: str | None = None
     price_id: str | None = Field(default=None, description="Stripe price id. None means free tier.")
+    product_id: str | None = Field(
+        default=None, description="Stripe product. Lets a coupon be restricted to one app."
+    )
     trial_days: int | None = None
     amount: int | None = None
     interval: str | None = None
@@ -71,10 +74,7 @@ class AppConfig(BaseModel):
 
     @property
     def paid_plans(self) -> list[PlanConfig]:
-        """Keyed on price_id, not amount.
-
-        Stripe is the source of truth for price, so a plan is purchasable when it has something
-        to charge against. Filtering on the static `amount` meant a plan priced only in Stripe
-        was rejected as "not purchasable" and never had its live price fetched.
+        """Keyed on price_id, not amount: Stripe owns the price, so a plan priced only there
+        was being rejected as unpurchasable and never had its live price fetched.
         """
         return [p for p in self.plans if p.price_id]

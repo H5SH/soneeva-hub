@@ -7,5 +7,5 @@ router = APIRouter(tags=["health"])
 
 
 @router.get("/health", response_model=HealthResponse)
-def health(settings: SettingsDep, registry: RegistryDep) -> HealthResponse:
-    return HealthResponse(status="ok", environment=settings.environment, apps=registry.ids)
+async def health(settings: SettingsDep, registry: RegistryDep) -> HealthResponse:
+    return HealthResponse(status="ok", environment=settings.environment, apps=await registry.ids())

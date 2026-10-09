@@ -2,8 +2,8 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, Request, status
 
-from app.auth.verify import AuthError, TokenVerifier
 from app.models.auth import Audience, AuthContext, TokenClaims
+from app.services.tokens.verify import AuthError, TokenVerifier
 
 HEADER_NAME = "x-api-key"
 QUERY_NAME = "token"

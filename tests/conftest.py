@@ -7,12 +7,12 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from app.auth.keys import KeyStore
-from app.auth.replay import ReplayGuard
-from app.auth.verify import TokenVerifier
 from app.models.auth import Audience
 from app.models.db import Collection
 from app.services.db.base import Database
+from app.services.tokens.keys import KeyStore
+from app.services.tokens.replay import ReplayGuard
+from app.services.tokens.verify import TokenVerifier
 
 APP_ID = "softbox"
 KID = "test-key"
@@ -56,8 +56,10 @@ class FakeDatabase(Database):
         return True
 
     async def set_row(self, collection, row_id, data):
-        self.rows[(collection.value, row_id)] = data
-        return data
+        # Merges, like the real one — a partial write must not wipe the other fields.
+        row = self.rows.setdefault((collection.value, row_id), {})
+        row.update(data)
+        return row
 
     async def delete_row(self, collection, row_id):
         return self.rows.pop((collection.value, row_id), None) is not None

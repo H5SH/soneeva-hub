@@ -1,10 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.dependencies import AppDep, AuthDep, BillingDep, SettingsDep
 from app.models.api import CheckoutRequest, PortalRequest, UrlResponse
+from app.services.tokens.deps import require_api_token
 from app.utils import hosted_urls
 
-router = APIRouter(prefix="/v1/apps/{app_id}", tags=["checkout"])
+router = APIRouter(prefix="/v1/apps/{app_id}", tags=["checkout"], dependencies=[Depends(require_api_token)])
 
 
 @router.post("/checkout/session", response_model=UrlResponse)

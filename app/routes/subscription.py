@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from app.dependencies import AppDep, AuthDep, BillingDep
 from app.models.api import (
@@ -10,8 +10,11 @@ from app.models.api import (
     SubscriptionResponse,
 )
 from app.models.payment import PaymentMethod
+from app.services.tokens.deps import require_api_token
 
-router = APIRouter(prefix="/v1/apps/{app_id}", tags=["subscription"])
+router = APIRouter(
+    prefix="/v1/apps/{app_id}", tags=["subscription"], dependencies=[Depends(require_api_token)]
+)
 
 
 @router.get("/subscription", response_model=SubscriptionResponse)

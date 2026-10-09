@@ -1,5 +1,5 @@
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import stripe
@@ -183,6 +183,108 @@ class StripeGateway(PaymentGateway):
             exp_year=card.get("exp_year"),
             wallet=(card.get("wallet") or {}).get("type"),
         )
+
+    async def create_price(
+        self,
+        app_id: str,
+        plan_code: str,
+        name: str,
+        amount: int,
+        currency: str,
+        interval: str,
+    ) -> tuple[str, str]:
+        """A product per plan, so a coupon can later be restricted to one app's products."""
+        product = await self._api.products.create_async(
+            {"name": name, "metadata": {"app_id": app_id, "plan_code": plan_code}}
+        )
+        price = await self._api.prices.create_async(
+            {
+                "product": product.id,
+                "unit_amount": amount,
+                "currency": currency.lower(),
+                "recurring": {"interval": interval},
+                "metadata": {"app_id": app_id, "plan_code": plan_code},
+            }
+        )
+        return product.id, price.id
+
+    async def revenue_by_day(self, days: int) -> list[tuple[str, int]]:
+        """Gross succeeded charges, net of refunds, grouped by day.
+
+        Capped rather than auto-paginated: this runs on a dashboard load, and an account
+        with a long history should not turn that into a hundred sequential API calls.
+        """
+        since = datetime.now(UTC) - timedelta(days=days)
+        totals: dict[str, int] = {
+            (since + timedelta(days=offset)).date().isoformat(): 0 for offset in range(days + 1)
+        }
+
+        starting_after: str | None = None
+        for _ in range(5):  # 5 x 100 charges is plenty for a 30-day window
+            params: dict[str, Any] = {
+                "created": {"gte": int(since.timestamp())},
+                "limit": 100,
+            }
+            if starting_after:
+                params["starting_after"] = starting_after
+            page = await self._api.charges.list_async(params)
+            rows = page.data or []
+            for charge in rows:
+                if charge.status != "succeeded":
+                    continue
+                day = datetime.fromtimestamp(charge.created, UTC).date().isoformat()
+                if day in totals:
+                    totals[day] += charge.amount - (charge.amount_refunded or 0)
+            if not page.has_more or not rows:
+                break
+            starting_after = rows[-1].id
+
+        return sorted(totals.items())
+
+    async def can_write_products(self) -> tuple[bool, str]:
+        """Checked before the plan step, so a restricted key fails here rather than midway."""
+        try:
+            await self._api.products.list_async({"limit": 1})
+        except stripe.PermissionError as error:
+            return False, str(error)
+        except stripe.AuthenticationError as error:
+            return False, f"Stripe rejected the key: {error}"
+        except Exception as error:  # noqa: BLE001 - surfaced to the operator as-is
+            return False, str(error)
+        return True, ""
+
+    async def create_full_discount(
+        self, code: str, app_id: str, product_ids: list[str], max_redemptions: int | None
+    ) -> tuple[str, str]:
+        """100% off, forever, so the merchant gets a real subscription at zero and nothing
+        downstream needs to know a coupon was involved.
+
+        Promotion codes are global to the Stripe account, so `applies_to` is what stops one
+        app's code working on another's checkout.
+        """
+        payload: dict[str, Any] = {
+            "percent_off": 100,
+            "duration": "forever",
+            "name": f"{app_id}: {code}",
+            "metadata": {"app_id": app_id},
+        }
+        if product_ids:
+            payload["applies_to"] = {"products": product_ids}
+        coupon = await self._api.coupons.create_async(payload)
+
+        promo: dict[str, Any] = {
+            "coupon": coupon.id,
+            "code": code,
+            "metadata": {"app_id": app_id},
+        }
+        if max_redemptions:
+            promo["max_redemptions"] = max_redemptions
+        promotion = await self._api.promotion_codes.create_async(promo)
+        return coupon.id, promotion.id
+
+    async def delete_promotion_code(self, promotion_code_id: str) -> None:
+        # Stripe has no delete for promotion codes; deactivating is the documented equivalent.
+        await self._api.promotion_codes.update_async(promotion_code_id, {"active": False})
 
     async def get_price(self, price_id: str) -> Price | None:
         cached = self._price_cache.get(price_id)

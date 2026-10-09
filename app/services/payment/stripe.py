@@ -256,7 +256,7 @@ class StripeGateway(PaymentGateway):
     async def create_full_discount(
         self, code: str, app_id: str, product_ids: list[str], max_redemptions: int | None
     ) -> tuple[str, str]:
-        """100% off, forever, so the merchant gets a real subscription at zero and nothing
+        """100% off, forever, so the customer gets a real subscription at zero and nothing
         downstream needs to know a coupon was involved.
 
         Promotion codes are global to the Stripe account, so `applies_to` is what stops one

@@ -11,6 +11,7 @@ from app.models.app import AppConfig, PlanConfig
 from app.models.auth import Application, ApplicationStatus
 from app.models.db import Collection
 from app.services.db import Database
+from app.services.payment import PaymentGateway
 from app.services.roles import RoleStore
 from app.services.tokens.generate import rotate
 from app.services.tokens.keys import KeyStore
@@ -21,10 +22,13 @@ class AdminError(Exception):
 
 
 class AdminService:
-    def __init__(self, db: Database, keys: KeyStore, roles: RoleStore) -> None:
+    def __init__(
+        self, db: Database, keys: KeyStore, roles: RoleStore, payment: PaymentGateway
+    ) -> None:
         self._db = db
         self._keys = keys
         self._roles = roles
+        self._payment = payment
 
     async def _save_app(self, app_id: str, fields: dict[str, Any]) -> None:
         """Write to applications/{id} and drop the verifier's cached copy.
@@ -136,6 +140,53 @@ class AdminService:
         }
 
     # ── plans ───────────────────────────────────────────────────────────────
+    async def define_plan(
+        self,
+        app_id: str,
+        code: str,
+        name: str = "",
+        amount: int = 0,
+        currency: str = "usd",
+        interval: str = "month",
+        trial_days: int = 0,
+        features: list[str] | None = None,
+    ) -> PlanConfig:
+        """Save a plan, creating its Stripe product and price the first time it is paid.
+
+        Here rather than in the route, so the CLI and the dashboard cannot drift — a plan
+        saved without its Stripe price looks fine and is unbuyable.
+        """
+        config = await self.get_app(app_id)
+        if not config:
+            raise AdminError("That app no longer exists.")
+
+        code, name = code.strip(), name.strip()
+        if not code:
+            raise AdminError("Give the plan a code.")
+
+        existing = config.plan(code)
+        product_id = existing.product_id if existing else None
+        price_id = existing.price_id if existing else None
+
+        if amount > 0 and not price_id:
+            writable, why = await self._payment.can_write_products()
+            if not writable:
+                raise AdminError(f"Stripe refused: {why}")
+            product_id, price_id = await self._payment.create_price(
+                app_id, code, name or code, amount, currency, interval
+            )
+
+        plan = PlanConfig(
+            code=code,
+            name=name or code,
+            price_id=price_id,
+            product_id=product_id,
+            trial_days=trial_days or None,
+            features=features or [],
+        )
+        await self.save_plan(app_id, plan)
+        return plan
+
     async def save_plan(self, app_id: str, plan: PlanConfig) -> None:
         config = await self.get_app(app_id)
         if not config:

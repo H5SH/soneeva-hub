@@ -30,7 +30,6 @@ class CouponService:
         self,
         app_id: str,
         code: str,
-        product_ids: list[str],
         created_by: str,
         max_redemptions: int | None = None,
     ) -> Coupon:
@@ -41,10 +40,17 @@ class CouponService:
             raise AdminError(f"Codes must be at least {MIN_LENGTH} characters.")
         if not code.isalnum():
             raise AdminError("Codes may contain letters and numbers only.")
-        if not product_ids:
-            raise AdminError("Add a paid plan first — there is nothing to discount.")
         if await self._db.get_row(Collection.COUPONS, code):
             raise AdminError(f"'{code}' already exists.")
+
+        # Resolved here, not passed in: a coupon with no products is global to the Stripe
+        # account and would discount every app.
+        row = await self._db.get_row(Collection.APPLICATIONS, app_id)
+        product_ids = [
+            p["product_id"] for p in (row or {}).get("plans", []) if p.get("product_id")
+        ]
+        if not product_ids:
+            raise AdminError("Add a paid plan first — there is nothing to discount.")
 
         coupon_id, promo_id = await self._payment.create_full_discount(
             code, app_id, product_ids, max_redemptions

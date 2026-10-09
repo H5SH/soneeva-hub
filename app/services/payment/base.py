@@ -34,7 +34,7 @@ class PaymentGateway(ABC):
         trial_days: int | None = None,
         promo_code: str | None = None,
     ) -> CheckoutSession:
-        """Hosted payment page the merchant is redirected to."""
+        """Hosted payment page the customer is redirected to."""
 
     @abstractmethod
     async def get_checkout_session(self, session_id: str) -> CheckoutSession | None: ...

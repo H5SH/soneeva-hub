@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from app.models.auth import Audience
-from app.models.db import Collection
+from app.models.db import DELETED_FLAG, Collection
 from app.services.db.base import Database
 from app.services.tokens.keys import KeyStore
 from app.services.tokens.replay import ReplayGuard
@@ -44,10 +44,22 @@ class FakeDatabase(Database):
         }
 
     async def get_rows(self, collection, filters=None, limit=None, order_by=None, descending=False):
-        return [v for (c, _), v in self.rows.items() if c == collection.value]
+        # `| {"id": ...}` mirrors the real one: Firestore keeps the document id outside the
+        # document, and callers rely on it being folded in.
+        out = [
+            v | {"id": row_id}
+            for (c, row_id), v in self.rows.items()
+            if c == collection.value and not v.get(DELETED_FLAG)
+        ]
+        for field, value in (filters or {}).items():
+            out = [r for r in out if r.get(field) == value]
+        return out[:limit] if limit else out
 
     async def get_row(self, collection, row_id):
-        return self.rows.get((collection.value, row_id))
+        row = self.rows.get((collection.value, row_id))
+        if row is None or row.get(DELETED_FLAG):
+            return None
+        return row | {"id": row_id}
 
     async def create_row(self, collection, row_id, data):
         if (collection.value, row_id) in self.rows:
@@ -62,7 +74,12 @@ class FakeDatabase(Database):
         return row
 
     async def delete_row(self, collection, row_id):
-        return self.rows.pop((collection.value, row_id), None) is not None
+        # Soft, like the real one: the row stays and reads start returning None.
+        row = self.rows.get((collection.value, row_id))
+        if row is None or row.get(DELETED_FLAG):
+            return False
+        row[DELETED_FLAG] = True
+        return True
 
 
 @pytest.fixture
@@ -115,3 +132,25 @@ def sign(keys):
         return jwt.encode(claims, key or private_pem, algorithm=alg, headers={"kid": kid})
 
     return _sign
+
+
+class FakePayment:
+    """Stripe stand-in. Records what it was asked to create so a test can assert on it."""
+
+    def __init__(self) -> None:
+        self.prices: list[tuple[str, str, int]] = []
+        self.discounts: list[tuple[str, list[str]]] = []
+        self.writable = True
+
+    async def can_write_products(self) -> tuple[bool, str]:
+        return (True, "") if self.writable else (False, "test mode refused")
+
+    async def create_price(self, app_id, code, name, amount, currency, interval):
+        self.prices.append((app_id, code, amount))
+        return f"prod_{app_id}_{code}", f"price_{app_id}_{code}"
+
+    async def create_full_discount(self, code, app_id, product_ids, max_redemptions):
+        self.discounts.append((code, product_ids))
+        return f"coup_{code}", f"promo_{code}"
+
+    async def delete_promotion_code(self, promotion_code_id) -> None: ...

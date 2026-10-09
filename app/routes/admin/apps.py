@@ -3,9 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.dependencies import AdminDep, CouponDep, PaymentDep, requires, requires_app
+from app.dependencies import AdminDep, CouponDep, requires, requires_app
 from app.models.admin import Principal, Scope
-from app.models.app import PlanConfig
 from app.services.admin import AdminError
 from app.services.tokens.generate import env_block
 from app.templating import templates
@@ -148,7 +147,6 @@ async def rotate_key(
 async def save_plan(
     app_id: str,
     admin: AdminDep,
-    payment: PaymentDep,
     code: Annotated[str, Form()],
     name: Annotated[str, Form()],
     amount: Annotated[int, Form()] = 0,
@@ -159,32 +157,17 @@ async def save_plan(
     user: Principal = requires_app(Scope.PLAN_CREATE),
 ):
     """A paid plan gets a Stripe product and price; a zero amount is the free tier."""
-    config = await admin.get_app(app_id)
-    if not config:
-        return _back(app_id, error="That app no longer exists.")
-
-    existing = config.plan(code.strip())
-    product_id = existing.product_id if existing else None
-    price_id = existing.price_id if existing else None
-
-    if amount > 0 and not price_id:
-        writable, why = await payment.can_write_products()
-        if not writable:
-            return _back(app_id, error=f"Stripe refused: {why}")
-        product_id, price_id = await payment.create_price(
-            app_id, code.strip(), name.strip() or code.strip(), amount, currency, interval
-        )
-
-    plan = PlanConfig(
-        code=code.strip(),
-        name=name.strip() or code.strip(),
-        price_id=price_id,
-        product_id=product_id,
-        trial_days=trial_days or None,
-        features=[f.strip() for f in features.splitlines() if f.strip()],
-    )
     try:
-        await admin.save_plan(app_id, plan)
+        plan = await admin.define_plan(
+            app_id,
+            code,
+            name,
+            amount,
+            currency,
+            interval,
+            trial_days,
+            [f.strip() for f in features.splitlines() if f.strip()],
+        )
     except AdminError as error:
         return _back(app_id, error=str(error))
     return _back(app_id, f"Plan '{plan.code}' saved.")
@@ -211,12 +194,8 @@ async def create_coupon(
     max_redemptions: Annotated[int, Form()] = 0,
     user: Principal = requires_app(Scope.COUPON_CREATE),
 ):
-    config = await admin.get_app(app_id)
-    products = [p.product_id for p in (config.plans if config else []) if p.product_id]
     try:
-        coupon = await coupons.create(
-            app_id, code, products, user.email, max_redemptions or None
-        )
+        coupon = await coupons.create(app_id, code, user.email, max_redemptions or None)
     except AdminError as error:
         return _back(app_id, error=str(error))
     return _back(app_id, f"Coupon {coupon.code} created — 100% off, forever.")

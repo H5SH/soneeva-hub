@@ -24,7 +24,7 @@ async def start(
     redirect: str = Query(default="", description="Where to land afterwards"),
     plan: str | None = Query(default=None, description="Skip the picker and go straight to payment"),
 ) -> HTMLResponse | RedirectResponse:
-    """Entry point for the hosted flow. The app redirects the merchant here with ?token=."""
+    """Entry point for the hosted flow. The app redirects the customer here with ?token=."""
     if plan:
         return await checkout(app, auth, billing, settings, plan, redirect)
     record = await billing.get_record(app.id, auth.tenant)
@@ -50,7 +50,7 @@ async def checkout(
     plan: str = Query(description="Plan code to buy"),
     redirect: str = Query(default=""),
 ) -> RedirectResponse:
-    """Creates the payment session and hands the merchant to the gateway's hosted page."""
+    """Creates the payment session and hands the customer to the gateway's hosted page."""
     destination = app.resolve_return_url(redirect)
     success_url, cancel_url = hosted_urls(settings.service_base_url, app.id, destination)
     session = await billing.start_checkout(
@@ -66,7 +66,7 @@ async def checkout_return(
     session_id: str = Query(description="Gateway checkout session id"),
     redirect: str = Query(default=""),
 ) -> RedirectResponse:
-    """Public: the gateway sends the merchant here. Syncs state, then bounces back to the app.
+    """Public: the gateway sends the customer here. Syncs state, then bounces back to the app.
 
     Unauthenticated by necessity — the browser arrives from Stripe with no token — so the
     redirect target is validated against the app's allow-list rather than trusted.
@@ -82,7 +82,7 @@ async def checkout_return(
 
 @router.get("/cancel")
 async def checkout_cancel(app: AppDep, redirect: str = Query(default="")) -> RedirectResponse:
-    """Public: the merchant backed out of the hosted payment page."""
+    """Public: the customer backed out of the hosted payment page."""
     return RedirectResponse(
         with_query(app.resolve_return_url(redirect), billing="cancelled"), status_code=SEE_OTHER
     )
@@ -92,6 +92,6 @@ async def checkout_cancel(app: AppDep, redirect: str = Query(default="")) -> Red
 async def portal(
     app: AppDep, auth: HostedDep, billing: BillingDep, redirect: str = Query(default="")
 ) -> RedirectResponse:
-    """Sends the merchant to the gateway's self-service billing page."""
+    """Sends the customer to the gateway's self-service billing page."""
     url = await billing.portal_url(auth, app.resolve_return_url(redirect))
     return RedirectResponse(url, status_code=SEE_OTHER)

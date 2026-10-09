@@ -62,6 +62,32 @@ Stripe is the slowest call in the service and nothing else on the page needs it,
 longer holds up the first byte; a skeleton stands in meanwhile, and Stripe being down leaves
 the rest of the dashboard intact.
 
+## The CLI
+
+Same operations, no browser. Useful for scripted setup, and for anyone who cannot complete a
+Firebase sign-in in a browser.
+
+```bash
+uv run python -m cli --help
+uv run python -m cli apps
+uv run python -m cli app:create snapback --name Snapback \
+    --return-url https://x.ngrok-free.app/plans --hosts x.ngrok-free.app,localhost
+uv run python -m cli plan:save snapback starter --name Starter --amount 2900 --trial 7
+uv run python -m cli key:rotate snapback          # prints the env block once
+uv run python -m cli coupon:create snapback --code LAUNCH99
+uv run python -m cli subscription snapback <store-hash>
+uv run python -m cli --json app:show snapback     # pipe into jq
+```
+
+**It is not a second way to configure anything.** Every command calls the same service method
+the matching dashboard route calls — that is why `AdminService.define_plan` exists rather than
+the Stripe price logic sitting in the route handler. A command whose behaviour is not in a
+service would be a fork waiting to diverge; put the behaviour in the service first.
+
+**No scope checks, by design.** Running it needs `GOOGLE_APPLICATION_CREDENTIALS`, which
+already grants full Firestore access, so a scope check here would be theatre. Scopes
+constrain people holding a dashboard session, which is a different threat.
+
 ## Caching
 
 Four in-process caches, all with a 60s TTL (30s for the registry) and an explicit drop when
@@ -102,9 +128,9 @@ in Firestore and are read per request, so disabling someone or changing their ro
 effect immediately instead of when a token expires.
 
 **Not NextAuth's cookie format.** NextAuth encrypts its session as a JWE with a key derived
-through HKDF; reimplementing that here would break the first time they change it. A Next app
-should verify this token itself — in middleware, or as a Credentials provider — rather than
-expect NextAuth to pick it up natively.
+through HKDF; reimplementing that here would break the first time they change it. An app that
+wants to accept this session should verify the token itself — any HS256 library will do — rather
+than expect NextAuth to pick it up natively.
 
 | Setting | |
 |---|---|
@@ -174,7 +200,7 @@ it, so tokens already in flight keep verifying while you deploy.
 ## Coupons
 
 A coupon is a Stripe coupon at **100% off, forever**, exposed as a promotion code. The
-merchant checks out normally and ends up with a real subscription at zero — status active,
+customer checks out normally and ends up with a real subscription at zero — status active,
 webhooks fired, entitlements unchanged. Nothing downstream knows a coupon was involved, which
 is the whole point: no faked state, no conditional code in the consuming app.
 

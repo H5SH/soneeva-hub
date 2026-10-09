@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
     app.state.webhooks = WebhookService(db, payment, billing, keys)
     app.state.authenticator = Auth(db, settings.session_secret, settings.session_ttl_days, roles)
     app.state.payment = payment
-    app.state.admin = AdminService(db, keys, roles)
+    app.state.admin = AdminService(db, keys, roles, payment)
     app.state.coupons = CouponService(db, payment)
     await seed_roles(db)
     yield

@@ -8,14 +8,14 @@ from app.services.roles import RoleStore
 from app.services.tokens.keys import KeyStore
 from app.services.tokens.replay import ReplayGuard
 from app.services.tokens.verify import TokenVerifier
-from tests.conftest import APP_ID, FakeDatabase
+from tests.conftest import APP_ID, FakeDatabase, FakePayment
 
 
 @pytest.fixture
 def wired(application):
     db = FakeDatabase({APP_ID: dict(application)})
     store = KeyStore(db)
-    return store, AdminService(db, store, RoleStore(db)), TokenVerifier(store, ReplayGuard())
+    return store, AdminService(db, store, RoleStore(db), FakePayment()), TokenVerifier(store, ReplayGuard())
 
 
 async def test_rotated_key_verifies_immediately(wired, sign):

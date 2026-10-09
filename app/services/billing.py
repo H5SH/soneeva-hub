@@ -110,7 +110,7 @@ class BillingService:
             price = by_id.get(plan.price_id or "")
             # Stripe wins over the static JSON. The old order let a stale `amount: 20` in the
             # config override Stripe's `2000` minor units, so displayed prices could drift from
-            # what the merchant is actually charged. Config keeps only the fields Stripe has no
+            # what the customer is actually charged. Config keeps only the fields Stripe has no
             # opinion on — name, description, features, limits.
             merged = plan.model_dump(exclude_none=True) | (
                 price.model_dump(exclude_none=True) if price else {}

@@ -41,7 +41,7 @@ async def list_plans(app: AppDep, auth: AuthDep, billing: BillingDep) -> list[Pl
 async def change_plan(
     app: AppDep, auth: AuthDep, billing: BillingDep, body: ChangePlanRequest
 ) -> SubscriptionResponse:
-    """Upgrade or downgrade in place, without sending the merchant back to checkout."""
+    """Upgrade or downgrade in place, without sending the customer back to checkout."""
     record = await billing.change_plan(app, auth, body.plan_code, body.proration_behavior)
     return billing.to_response(app, record)
 

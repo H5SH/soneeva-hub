@@ -7,7 +7,7 @@ from app.models.db import Collection
 from app.services.admin import AdminService
 from app.services.roles import RoleStore
 from app.services.tokens.keys import KeyStore
-from tests.conftest import FakeDatabase
+from tests.conftest import FakeDatabase, FakePayment
 
 ROLE = "auditor"
 
@@ -17,7 +17,7 @@ def wired():
     db = FakeDatabase()
     db.rows[(Collection.ROLES.value, ROLE)] = {"scopes": [str(Scope.APP_VIEW)]}
     roles = RoleStore(db)
-    return db, roles, AdminService(db, KeyStore(db), roles)
+    return db, roles, AdminService(db, KeyStore(db), roles, FakePayment())
 
 
 async def test_cached_role_is_not_a_second_read(wired):

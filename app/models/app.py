@@ -23,7 +23,7 @@ class PlanConfig(BaseModel):
 
 
 class AppConfig(BaseModel):
-    """One calling app: where to send the merchant back, and what it can sell."""
+    """One calling app: where to send the customer back, and what it can sell."""
 
     id: str
     name: str

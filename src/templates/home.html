@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Soneeva</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: light-dark(#fbfaf7, #0e0e0f);
+    --ink: light-dark(#0b0b0c, #f3f1ea);
+    --muted: light-dark(#5c5a52, #a9a69b);
+    --line: light-dark(#d9d5c7, #2b2a26);
+    --action: #b5381a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    height: 100dvh; overflow: hidden; display: grid; place-items: center; padding: 16px;
+    background: var(--bg); color: var(--ink); font: 16px/1.5 "Instrument Sans", system-ui, sans-serif;
+  }
+  main { display: grid; justify-items: center; gap: 20px; text-align: center; }
+  h1 { margin: 0; font: 400 clamp(40px, 7vw, 72px)/1 "Instrument Serif", Georgia, serif; }
+  h1 em { color: var(--action); }
+  p { margin: 0; color: var(--muted); max-width: 30em; }
+  a.button {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 22px;
+    border-radius: 10px; background: var(--action); color: #fbfaf7; font-weight: 600; text-decoration: none;
+  }
+  a.button:focus-visible { outline: 3px solid #dad383; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <svg viewBox="4 5 56 57" width="64" height="64" aria-label="Soneeva">
+    <path fill="#dad383" d="M20.5 43.46A19 19 0 1 1 43.11 19.24A20 20 0 0 0 20.5 43.46Z"/>
+    <path fill="#dad383" stroke="#dad383" stroke-width="2" stroke-linejoin="round" d="M10.5 33.5L5.5 50.5L17.5 40.5Z"/>
+    <path fill="#b5381a" d="M23 39a17 17 0 1 0 34 0a17 17 0 1 0 -34 0Z"/>
+    <path fill="#b5381a" stroke="#b5381a" stroke-width="2" stroke-linejoin="round" d="M48.5 52L58.5 60.5L55 45Z"/>
+    <path stroke="#fbfaf7" fill="none" stroke-width="3" stroke-linecap="round" d="M32 37v4M36 33v12M40 29v20M44 33v12M48 37v4"/>
+  </svg>
+  <h1>Call smart. <em>Call Soneeva.</em></h1>
+  {% if staff %}
+    <p>You're signed in with access to internal tools.</p>
+    <a class="button" href="/recover">Open key recovery</a>
+  {% else %}
+    <p>The voice agent that answers your business phones in every language.</p>
+    <a class="button" href="{{ site }}">Visit soneeva.com</a>
+  {% endif %}
+</main>
+</body>
+</html>

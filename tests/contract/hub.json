@@ -1,0 +1,1528 @@
+{
+  "_comment": "karbon-hub /v1 responses (and request bodies) as the console, karbon-admin and soneeva-voice use them. Same file in hub/tests/contract and dashboard/contract.",
+  "business": {
+    "id": "pizzaroma1",
+    "name": "Pizza Roma",
+    "type": "restaurant",
+    "appId": "soneeva",
+    "dbId": "b-pizzaroma1",
+    "ownerUid": "owner1",
+    "status": "running",
+    "configured": true,
+    "provisioned": true,
+    "provisionError": null,
+    "servicepersonUid": "sp-demo-1",
+    "numbers": [
+      {
+        "phoneNumber": "+31201112222",
+        "sid": "PN1",
+        "at": "2026-10-01T12:00:00+00:00"
+      }
+    ],
+    "voiceUrl": "https://voice-pizzaroma1.example",
+    "mcpUrl": "https://mcp.pizzaroma.example/mcp",
+    "whatsappFrom": "whatsapp:+31201112222",
+    "plan": {
+      "code": "per-minute",
+      "status": "active",
+      "active": true
+    },
+    "test": false,
+    "country": "NL",
+    "timezone": "Europe/Amsterdam",
+    "languages": [
+      "nl",
+      "en"
+    ],
+    "branchCount": 1,
+    "phone": "+31201234567",
+    "email": "roma@example.com",
+    "twilioAccountSid": "AC1",
+    "consentAt": "2026-10-01T11:00:00.000Z",
+    "createdAt": "2026-10-01T11:00:00Z"
+  },
+  "agentConnectionPatch": {
+    "mcpUrl": "https://mcp.pizzaroma.example/mcp",
+    "whatsappFrom": "whatsapp:+31201112222"
+  },
+  "businessPatched": {
+    "id": "pizzaroma1",
+    "name": "Pizza Roma",
+    "type": "restaurant",
+    "appId": "soneeva",
+    "dbId": "b-pizzaroma1",
+    "ownerUid": "owner1",
+    "status": "running",
+    "configured": true,
+    "provisioned": true,
+    "provisionError": null,
+    "servicepersonUid": "sp-demo-1",
+    "numbers": [
+      {
+        "phoneNumber": "+31201112222",
+        "sid": "PN1",
+        "at": "2026-10-01T12:00:00+00:00"
+      }
+    ],
+    "voiceUrl": "https://voice-pizzaroma1.example",
+    "mcpUrl": "https://mcp.pizzaroma.example/mcp",
+    "whatsappFrom": "whatsapp:+31201112222",
+    "plan": {
+      "code": "per-minute",
+      "status": "active",
+      "active": true
+    },
+    "test": false,
+    "country": "NL",
+    "timezone": "Europe/Amsterdam",
+    "languages": [
+      "nl",
+      "en"
+    ],
+    "branchCount": 1,
+    "phone": "+31201234567",
+    "email": "roma@example.com",
+    "twilioAccountSid": "AC1",
+    "consentAt": "2026-10-01T11:00:00.000Z",
+    "createdAt": "2026-10-01T11:00:00Z",
+    "redeploying": true
+  },
+  "checklistMeeting": {
+    "done": true
+  },
+  "checklistMeetingDone": {
+    "id": "meeting",
+    "state": "done"
+  },
+  "checklist": {
+    "items": [
+      {
+        "id": "assigned",
+        "label": "Serviceperson assigned",
+        "state": "done",
+        "by": "karbon-hub",
+        "at": "2026-10-01T12:00:00+00:00"
+      },
+      {
+        "id": "meeting",
+        "label": "Meeting with the serviceperson",
+        "state": "open",
+        "by": null,
+        "at": null
+      }
+    ]
+  },
+  "serviceperson": {
+    "uid": "sp-demo-1",
+    "name": "Sanne de Vries",
+    "phone": "+31600000001",
+    "email": "sanne@example.com",
+    "active": true
+  },
+  "number": {
+    "phoneNumber": "+31201112222",
+    "friendlyName": "(020) 111-2222",
+    "locality": "Amsterdam",
+    "region": "NH",
+    "country": "NL"
+  },
+  "bought": {
+    "phoneNumber": "+31201112222",
+    "sid": "PN1",
+    "at": "2026-10-01T12:00:00+00:00"
+  },
+  "plan": {
+    "code": "per-minute",
+    "name": "Per minute",
+    "price": 0.1,
+    "unit": "minute",
+    "currency": "usd",
+    "features": [],
+    "status": "active",
+    "icon": "https://files.stripe.com/links/MDB8YWNjdF8x"
+  },
+  "voiceSettings": {
+    "language": "nl",
+    "voice": "nl-NL-Chirp3-HD-Kore"
+  },
+  "voiceSaved": {
+    "saved": true,
+    "restarting": true,
+    "warning": "The voice service restarts; calls in progress are dropped."
+  },
+  "signup": {
+    "appId": "soneeva",
+    "owner": {
+      "email": "roma@example.com",
+      "password": "test-only-pw",
+      "displayName": "Rosa",
+      "username": "rosa"
+    },
+    "name": "Pizza Roma",
+    "type": "restaurant",
+    "country": "NL",
+    "timezone": "Europe/Amsterdam",
+    "languages": [
+      "nl",
+      "en"
+    ],
+    "branchCount": 1,
+    "phone": "+31201234567",
+    "email": "roma@example.com",
+    "address": "Dam 1, Amsterdam",
+    "hours": {
+      "mon": [],
+      "tue": [
+        {
+          "open": "11:00",
+          "close": "22:00"
+        }
+      ],
+      "wed": [
+        {
+          "open": "11:00",
+          "close": "22:00"
+        }
+      ],
+      "thu": [
+        {
+          "open": "11:00",
+          "close": "22:00"
+        }
+      ],
+      "fri": [
+        {
+          "open": "11:00",
+          "close": "22:00"
+        }
+      ],
+      "sat": [
+        {
+          "open": "11:00",
+          "close": "15:00"
+        },
+        {
+          "open": "17:00",
+          "close": "23:30"
+        }
+      ],
+      "sun": [
+        {
+          "open": "12:00",
+          "close": "21:00"
+        }
+      ]
+    },
+    "consentAt": "2026-10-01T11:00:00.000Z"
+  },
+  "account": {
+    "uid": "m1",
+    "email": "marco@pizzaroma.nl",
+    "displayName": "Marco Rossi",
+    "disabled": false,
+    "username": "marco",
+    "businessId": "pizzaroma1",
+    "createdAt": "2026-10-01T11:00:00+00:00",
+    "lastSignInAt": null
+  },
+  "accountCreate": {
+    "email": "marco@pizzaroma.nl",
+    "password": "test-only-pw",
+    "displayName": "Marco Rossi",
+    "username": "marco"
+  },
+  "accountUpdated": {
+    "account": {
+      "uid": "m1",
+      "email": "marco@pizzaroma.nl",
+      "displayName": "Marco Rossi",
+      "disabled": false,
+      "username": "marco",
+      "businessId": "pizzaroma1",
+      "createdAt": "2026-10-01T11:00:00+00:00",
+      "lastSignInAt": null
+    }
+  },
+  "person": {
+    "uid": "Ab34sanne",
+    "email": "sanne@soneeva.com",
+    "displayName": "Sanne",
+    "disabled": false,
+    "username": "sanne",
+    "businessId": null,
+    "createdAt": "2026-10-01T11:00:00+00:00",
+    "lastSignInAt": null,
+    "phone": "",
+    "role": "sales",
+    "tokens": null,
+    "servicepersons": [
+      "sp"
+    ],
+    "apps": [
+      "soneeva"
+    ],
+    "businesses": [
+      "pizzaroma1"
+    ]
+  },
+  "people": {
+    "people": [
+      {
+        "uid": "Ab34sanne",
+        "email": "sanne@soneeva.com",
+        "displayName": "Sanne",
+        "disabled": false,
+        "username": "sanne",
+        "businessId": null,
+        "createdAt": "2026-10-01T11:00:00+00:00",
+        "lastSignInAt": null,
+        "phone": "",
+        "role": "sales",
+        "tokens": null,
+        "servicepersons": [
+          "sp"
+        ],
+        "apps": [
+          "soneeva"
+        ],
+        "businesses": [
+          "pizzaroma1"
+        ]
+      }
+    ],
+    "nextPageToken": null
+  },
+  "personCreate": {
+    "email": "sanne@soneeva.com",
+    "phone": "+31600000001",
+    "displayName": "Sanne",
+    "username": "sanne",
+    "role": "sales",
+    "apps": [
+      "soneeva"
+    ],
+    "businesses": [
+      "pizzaroma1"
+    ],
+    "servicepersons": [
+      "sp"
+    ],
+    "tokens": 10
+  },
+  "personCreated": {
+    "person": {
+      "uid": "Ab34sanne",
+      "email": "sanne@soneeva.com",
+      "displayName": "Sanne",
+      "disabled": false,
+      "username": "sanne",
+      "businessId": null,
+      "createdAt": "2026-10-01T11:00:00+00:00",
+      "lastSignInAt": null,
+      "phone": "",
+      "role": "sales",
+      "tokens": null,
+      "servicepersons": [
+        "sp"
+      ],
+      "apps": [
+        "soneeva"
+      ],
+      "businesses": [
+        "pizzaroma1"
+      ]
+    },
+    "link": "https://soniva-63b25.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=..."
+  },
+  "personPatch": {
+    "role": "sales",
+    "apps": [
+      "soneeva"
+    ],
+    "businesses": [
+      "pizzaroma1"
+    ],
+    "disabled": false
+  },
+  "personUpdated": {
+    "person": {
+      "uid": "Ab34sanne",
+      "email": "sanne@soneeva.com",
+      "displayName": "Sanne",
+      "disabled": false,
+      "username": "sanne",
+      "businessId": null,
+      "createdAt": "2026-10-01T11:00:00+00:00",
+      "lastSignInAt": null,
+      "phone": "",
+      "role": "sales",
+      "tokens": null,
+      "servicepersons": [
+        "sp"
+      ],
+      "apps": [
+        "soneeva"
+      ],
+      "businesses": [
+        "pizzaroma1"
+      ]
+    },
+    "dropped": 0
+  },
+  "roles": {
+    "roles": [
+      {
+        "name": "sales",
+        "scopes": [
+          "Businesses.View",
+          "Businesses.Assign",
+          "payment.app.view"
+        ],
+        "holders": 1
+      }
+    ],
+    "scopes": [
+      {
+        "id": "Users.View",
+        "group": "people",
+        "twin": true
+      },
+      {
+        "id": "payment.app.view",
+        "group": "payments",
+        "twin": false
+      }
+    ],
+    "assignable": [
+      "sales"
+    ]
+  },
+  "call": {
+    "id": "c0",
+    "uid": "web-u1",
+    "agent": "—",
+    "status": "completed",
+    "startedAt": "2026-10-01T00:00:00.000Z",
+    "endedAt": null,
+    "durationSeconds": 61,
+    "messageCount": 2,
+    "turns": 1,
+    "languages": [
+      "nl"
+    ],
+    "tools": {},
+    "interruptions": 0,
+    "holdingPhrases": 0,
+    "endReason": null,
+    "models": {
+      "llm": "",
+      "stt": "",
+      "tts": ""
+    },
+    "usage": null,
+    "cost": {
+      "llm": 0.1,
+      "stt": 0.2,
+      "tts": 0.2,
+      "telephony": 0.05,
+      "total": 0.5
+    }
+  },
+  "calls": {
+    "calls": [
+      {
+        "id": "c0",
+        "uid": "web-u1",
+        "agent": "—",
+        "status": "completed",
+        "startedAt": "2026-10-01T00:00:00.000Z",
+        "endedAt": null,
+        "durationSeconds": 61,
+        "messageCount": 2,
+        "turns": 1,
+        "languages": [
+          "nl"
+        ],
+        "tools": {},
+        "interruptions": 0,
+        "holdingPhrases": 0,
+        "endReason": null,
+        "models": {
+          "llm": "",
+          "stt": "",
+          "tts": ""
+        },
+        "usage": null,
+        "cost": {
+          "llm": 0.1,
+          "stt": 0.2,
+          "tts": 0.2,
+          "telephony": 0.05,
+          "total": 0.5
+        }
+      }
+    ],
+    "next": null
+  },
+  "message": {
+    "id": "0",
+    "index": 0,
+    "role": "user",
+    "content": "hi",
+    "language": null,
+    "createdAt": null,
+    "usage": null,
+    "cost": null,
+    "responseMs": null,
+    "tools": [],
+    "holdingPhrases": [],
+    "interrupted": false,
+    "error": false,
+    "endedCall": false
+  },
+  "callsDaily": {
+    "days": [
+      {
+        "day": "2026-10-01",
+        "calls": 1,
+        "minutes": 1.016667,
+        "llm": 0.1,
+        "stt": 0.2,
+        "tts": 0.2,
+        "telephony": 0.05,
+        "total": 0.5
+      }
+    ]
+  },
+  "home": {
+    "businesses": {
+      "reach": "all",
+      "total": 2,
+      "configured": 1,
+      "pending": 1,
+      "running": 1,
+      "onhold": 0,
+      "signups": [
+        {
+          "day": "2026-10-01",
+          "count": 1
+        }
+      ],
+      "recent": [
+        {
+          "id": "pizzaroma1",
+          "name": "Pizza Roma",
+          "type": "restaurant",
+          "status": "running",
+          "servicepersonUid": "sp-demo-1",
+          "servicepersonName": "Sanne de Vries",
+          "createdAt": "2026-10-01T11:00:00+00:00"
+        }
+      ]
+    },
+    "assignment": {
+      "unassigned": 1,
+      "servicepersons": [
+        {
+          "uid": "sp-demo-1",
+          "name": "Sanne de Vries",
+          "businesses": 1
+        }
+      ]
+    },
+    "workspace": {
+      "businesses": [
+        {
+          "id": "pizzaroma1",
+          "name": "Pizza Roma",
+          "type": "restaurant",
+          "status": "running",
+          "configured": true,
+          "done": 3,
+          "total": 8,
+          "review": 1,
+          "meetingDone": false,
+          "createdAt": "2026-10-01T11:00:00+00:00"
+        }
+      ]
+    },
+    "people": {
+      "reach": "all",
+      "total": 4,
+      "disabled": 0,
+      "roles": [
+        {
+          "role": "user",
+          "count": 2
+        }
+      ],
+      "created": [
+        {
+          "uid": "u1",
+          "name": "Lena Vos",
+          "role": "user",
+          "createdAt": "2026-10-01T11:00:00Z",
+          "lastSignInAt": "2026-10-02T09:00:00Z"
+        }
+      ],
+      "active": [
+        {
+          "uid": "u1",
+          "name": "Lena Vos",
+          "role": "user",
+          "createdAt": "2026-10-01T11:00:00Z",
+          "lastSignInAt": "2026-10-02T09:00:00Z"
+        }
+      ]
+    },
+    "advertisements": {
+      "active": 1,
+      "paused": 0,
+      "ads": [
+        {
+          "id": "ad-welcome01",
+          "title": "Summer deal",
+          "active": true,
+          "businesses": 2,
+          "dismissed": 1
+        }
+      ]
+    },
+    "payments": {
+      "apps": [
+        {
+          "id": "soneeva",
+          "name": "Soneeva",
+          "plans": {
+            "active": 1,
+            "soon": 3,
+            "hidden": 0
+          },
+          "subscribers": 2
+        }
+      ],
+      "recent": [
+        {
+          "appId": "soneeva",
+          "businessId": "pizzaroma1",
+          "businessName": "Pizza Roma",
+          "plan": "per-minute",
+          "status": "active",
+          "test": false,
+          "at": "2026-10-01T12:00:00+00:00"
+        }
+      ]
+    },
+    "demo": {
+      "days": [
+        {
+          "day": "2026-10-01",
+          "calls": 1,
+          "minutes": 2.0
+        }
+      ]
+    }
+  },
+  "advertisementCreate": {
+    "title": "Summer deal",
+    "body": "Half off your first month",
+    "buttonLabel": "See plans",
+    "buttonUrl": "https://soneeva.com/pricing",
+    "background": "teal",
+    "icon": false,
+    "active": true
+  },
+  "advertisementPatch": {
+    "active": false
+  },
+  "advertisementPublish": {
+    "businessIds": [
+      "pizzaroma1"
+    ]
+  },
+  "advertisement": {
+    "id": "ad-k3v9q2m1xz",
+    "title": "Summer deal",
+    "body": "Half off your first month",
+    "buttonLabel": "See plans",
+    "buttonUrl": "https://soneeva.com/pricing",
+    "background": "teal",
+    "icon": true,
+    "active": true,
+    "iconPath": "advertisements/ad-k3v9q2m1xz/icon",
+    "backgroundPath": null,
+    "businessIds": [
+      "pizzaroma1"
+    ],
+    "createdBy": "Ab34sanne",
+    "createdAt": "2026-10-01T11:00:00+00:00",
+    "updatedAt": "2026-10-02T09:00:00+00:00"
+  },
+  "advertisements": {
+    "advertisements": [
+      {
+        "id": "ad-k3v9q2m1xz",
+        "title": "Summer deal",
+        "body": "Half off your first month",
+        "buttonLabel": "See plans",
+        "buttonUrl": "https://soneeva.com/pricing",
+        "background": "teal",
+        "icon": true,
+        "active": true,
+        "iconPath": "advertisements/ad-k3v9q2m1xz/icon",
+        "backgroundPath": null,
+        "businessIds": [
+          "pizzaroma1"
+        ],
+        "createdBy": "Ab34sanne",
+        "createdAt": "2026-10-01T11:00:00+00:00",
+        "updatedAt": "2026-10-02T09:00:00+00:00"
+      }
+    ]
+  },
+  "businessAdvertisement": {
+    "title": "Summer deal",
+    "body": "Half off your first month",
+    "buttonLabel": "See plans",
+    "buttonUrl": "https://soneeva.com/pricing",
+    "background": "teal",
+    "iconPath": "advertisements/ad-k3v9q2m1xz/icon",
+    "backgroundPath": null,
+    "active": true,
+    "publishedAt": "2026-10-02T09:00:00+00:00",
+    "updatedAt": "2026-10-02T09:00:00+00:00",
+    "dismissed": false,
+    "dismissedAt": null,
+    "isDeleted": false
+  },
+  "totals": {
+    "calls": 3,
+    "messages": 6,
+    "cost": 1.5
+  },
+  "appCreate": {
+    "id": "honeybook",
+    "name": "Honey Book",
+    "returnUrl": "https://honeybook.app/billing",
+    "allowedReturnHosts": [
+      "honeybook.app",
+      "localhost"
+    ],
+    "tags": [
+      "kids",
+      "eu"
+    ]
+  },
+  "planPut": {
+    "name": "Team",
+    "description": "For teams with two numbers",
+    "amount": 4900,
+    "currency": "usd",
+    "interval": "month",
+    "unit": "month",
+    "trialDays": 7,
+    "features": [
+      "Two numbers"
+    ],
+    "status": "active",
+    "contact": false
+  },
+  "planCreate": {
+    "name": "Pro Plus",
+    "amount": 2999,
+    "currency": "usd",
+    "interval": "month",
+    "unit": "month",
+    "trialDays": 0,
+    "features": [
+      "Everything in Pro"
+    ],
+    "status": "active",
+    "contact": false
+  },
+  "planStatusPut": {
+    "status": "soon"
+  },
+  "appPatch": {
+    "name": "Honey Book",
+    "returnUrl": "https://honeybook.app/billing",
+    "allowedReturnHosts": [
+      "honeybook.app"
+    ],
+    "freePlanCode": "free",
+    "tags": [
+      "kids"
+    ],
+    "webhookSecret": "whsec_written_never_read"
+  },
+  "couponCreate": {
+    "code": "LAUNCH99",
+    "kind": "percent",
+    "value": 50,
+    "currency": "usd",
+    "duration": "repeating",
+    "months": 3,
+    "maxRedemptions": 50,
+    "expiresAt": "2026-12-31T00:00:00+00:00"
+  },
+  "roleCreate": {
+    "name": "auditor",
+    "scopes": [
+      "Users.View",
+      "payment.app.view",
+      "payment.plan.view"
+    ]
+  },
+  "rolePut": {
+    "scopes": [
+      "Users.View",
+      "payment.app.view"
+    ]
+  },
+  "handoffRequest": {
+    "businessId": "pizzaroma1"
+  },
+  "checkoutRequest": {
+    "plan": "per-minute",
+    "successUrl": "https://console.soneeva.com/billing?checkout=success",
+    "cancelUrl": "https://console.soneeva.com/billing"
+  },
+  "portalRequest": {
+    "returnUrl": "https://console.soneeva.com/billing"
+  },
+  "me": {
+    "uid": "Xy12op",
+    "email": "dev@soneeva.com",
+    "displayName": "Dev",
+    "username": "dev",
+    "role": "superadmin",
+    "paymentScopes": [
+      "payment.admin",
+      "payment.app.view",
+      "payment.plan.view"
+    ],
+    "platformScopes": [
+      "*",
+      "platform.docs.view"
+    ],
+    "allApps": true,
+    "apps": [],
+    "businesses": []
+  },
+  "paymentApps": {
+    "apps": [
+      {
+        "id": "soneeva",
+        "name": "Soneeva",
+        "returnUrl": null,
+        "allowedReturnHosts": [
+          "localhost",
+          "soneeva.com",
+          "console.soneeva.com"
+        ],
+        "freePlanCode": null,
+        "status": "active",
+        "scopes": [],
+        "keys": [
+          {
+            "kid": "20261001120000",
+            "status": "active",
+            "subject": null
+          }
+        ],
+        "plans": [
+          {
+            "code": "per-minute",
+            "name": "Per minute",
+            "description": null,
+            "amount": 10,
+            "currency": "usd",
+            "unit": "minute",
+            "interval": "month",
+            "trialDays": null,
+            "status": "active",
+            "contact": false,
+            "active": true,
+            "productId": "prod_Q",
+            "priceId": "price_1Q",
+            "meterId": "mtr_Q",
+            "features": [],
+            "icon": "https://files.stripe.com/links/MDB8YWNjdF8x"
+          }
+        ],
+        "tags": [],
+        "mode": "live",
+        "hasWebhookSecret": false
+      }
+    ]
+  },
+  "paymentApp": {
+    "id": "soneeva",
+    "name": "Soneeva",
+    "returnUrl": null,
+    "allowedReturnHosts": [
+      "localhost",
+      "soneeva.com",
+      "console.soneeva.com"
+    ],
+    "freePlanCode": null,
+    "status": "active",
+    "scopes": [],
+    "keys": [
+      {
+        "kid": "20261001120000",
+        "status": "active",
+        "subject": null
+      }
+    ],
+    "plans": [
+      {
+        "code": "per-minute",
+        "name": "Per minute",
+        "description": null,
+        "amount": 10,
+        "currency": "usd",
+        "unit": "minute",
+        "interval": "month",
+        "trialDays": null,
+        "status": "active",
+        "contact": false,
+        "active": true,
+        "productId": "prod_Q",
+        "priceId": "price_1Q",
+        "meterId": "mtr_Q",
+        "features": [],
+        "icon": "https://files.stripe.com/links/MDB8YWNjdF8x"
+      }
+    ],
+    "tags": [
+      "kids",
+      "eu"
+    ],
+    "mode": "live",
+    "hasWebhookSecret": true,
+    "subscribers": 1
+  },
+  "appKey": {
+    "appId": "soneeva",
+    "kid": "20261011120000",
+    "privateKey": "-----BEGIN PRIVATE KEY-----\nMC4C...\n-----END PRIVATE KEY-----\n"
+  },
+  "webhookProvisioned": {
+    "endpointId": "we_1Q",
+    "url": "https://hub.soneeva.com/webhooks/stripe/soneeva",
+    "hasWebhookSecret": true
+  },
+  "agentTokenCreate": {
+    "minutes": 30
+  },
+  "agentToken": {
+    "token": "kat_Zx9…shown-once",
+    "expiresAt": "2026-10-13T12:30:00+00:00"
+  },
+  "agentTokensRevoked": {
+    "revoked": 1
+  },
+  "paymentPlans": {
+    "plans": [
+      {
+        "code": "per-minute",
+        "name": "Per minute",
+        "description": null,
+        "amount": 10,
+        "currency": "usd",
+        "unit": "minute",
+        "interval": "month",
+        "trialDays": null,
+        "status": "active",
+        "contact": false,
+        "active": true,
+        "productId": "prod_Q",
+        "priceId": "price_1Q",
+        "meterId": "mtr_Q",
+        "features": [],
+        "icon": "https://files.stripe.com/links/MDB8YWNjdF8x"
+      }
+    ]
+  },
+  "paymentPlan": {
+    "code": "team",
+    "name": "Team",
+    "description": null,
+    "amount": 4900,
+    "currency": "usd",
+    "unit": "month",
+    "interval": "month",
+    "trialDays": 7,
+    "status": "active",
+    "contact": false,
+    "active": true,
+    "productId": "prod_T",
+    "priceId": "price_2T",
+    "meterId": null,
+    "features": [
+      "Two numbers"
+    ],
+    "icon": null
+  },
+  "coupon": {
+    "code": "LAUNCH99",
+    "appId": "soneeva",
+    "maxRedemptions": 50,
+    "timesRedeemed": 0,
+    "active": true,
+    "createdBy": "dev@soneeva.com",
+    "couponId": "Zx9coupon",
+    "promotionCodeId": "promo_1Q",
+    "discount": {
+      "kind": "percent",
+      "value": 50,
+      "currency": "usd",
+      "duration": "repeating",
+      "months": 3,
+      "expiresAt": "2026-12-31T00:00:00+00:00"
+    }
+  },
+  "coupons": {
+    "coupons": [
+      {
+        "code": "LAUNCH99",
+        "appId": "soneeva",
+        "maxRedemptions": 50,
+        "timesRedeemed": 0,
+        "active": true,
+        "createdBy": "dev@soneeva.com",
+        "couponId": "Zx9coupon",
+        "promotionCodeId": "promo_1Q",
+        "discount": {
+          "kind": "percent",
+          "value": 50,
+          "currency": "usd",
+          "duration": "repeating",
+          "months": 3,
+          "expiresAt": "2026-12-31T00:00:00+00:00"
+        }
+      }
+    ]
+  },
+  "paymentBusinesses": {
+    "businesses": [
+      {
+        "business": {
+          "id": "pizzaroma1",
+          "name": "Pizza Roma",
+          "type": "restaurant",
+          "appId": "soneeva",
+          "dbId": "b-pizzaroma1",
+          "ownerUid": "owner1",
+          "status": "running",
+          "configured": true,
+          "provisioned": true,
+          "provisionError": null,
+          "servicepersonUid": "sp-demo-1",
+          "numbers": [
+            {
+              "phoneNumber": "+31201112222",
+              "sid": "PN1",
+              "at": "2026-10-01T12:00:00+00:00"
+            }
+          ],
+          "voiceUrl": "https://voice-pizzaroma1.example",
+          "mcpUrl": "https://mcp.pizzaroma.example/mcp",
+          "whatsappFrom": "whatsapp:+31201112222",
+          "plan": {
+            "code": "per-minute",
+            "status": "active",
+            "active": true
+          },
+          "test": false,
+          "country": "NL",
+          "timezone": "Europe/Amsterdam",
+          "languages": [
+            "nl",
+            "en"
+          ],
+          "branchCount": 1,
+          "phone": "+31201234567",
+          "email": "roma@example.com",
+          "twilioAccountSid": "AC1",
+          "consentAt": "2026-10-01T11:00:00.000Z",
+          "createdAt": "2026-10-01T11:00:00Z"
+        },
+        "subscription": {
+          "status": "active",
+          "active": true,
+          "planCode": "per-minute",
+          "customerId": "cus_Q1",
+          "subscriptionId": "sub_Q1",
+          "priceId": "price_1Q",
+          "quantity": 1,
+          "amount": 10,
+          "currency": "usd",
+          "interval": "month",
+          "currentPeriodStart": "2026-10-01T00:00:00Z",
+          "currentPeriodEnd": "2026-11-01T00:00:00Z",
+          "trialEnd": null,
+          "cancelAtPeriodEnd": false,
+          "canceledAt": null,
+          "meterId": "mtr_Q"
+        }
+      }
+    ]
+  },
+  "paymentBusiness": {
+    "business": {
+      "id": "pizzaroma1",
+      "name": "Pizza Roma",
+      "type": "restaurant",
+      "appId": "soneeva",
+      "dbId": "b-pizzaroma1",
+      "ownerUid": "owner1",
+      "status": "running",
+      "configured": true,
+      "provisioned": true,
+      "provisionError": null,
+      "servicepersonUid": "sp-demo-1",
+      "numbers": [
+        {
+          "phoneNumber": "+31201112222",
+          "sid": "PN1",
+          "at": "2026-10-01T12:00:00+00:00"
+        }
+      ],
+      "voiceUrl": "https://voice-pizzaroma1.example",
+      "mcpUrl": "https://mcp.pizzaroma.example/mcp",
+      "whatsappFrom": "whatsapp:+31201112222",
+      "plan": {
+        "code": "per-minute",
+        "status": "active",
+        "active": true
+      },
+      "test": false,
+      "country": "NL",
+      "timezone": "Europe/Amsterdam",
+      "languages": [
+        "nl",
+        "en"
+      ],
+      "branchCount": 1,
+      "phone": "+31201234567",
+      "email": "roma@example.com",
+      "twilioAccountSid": "AC1",
+      "consentAt": "2026-10-01T11:00:00.000Z",
+      "createdAt": "2026-10-01T11:00:00Z"
+    },
+    "subscription": {
+      "status": "active",
+      "active": true,
+      "planCode": "per-minute",
+      "customerId": "cus_Q1",
+      "subscriptionId": "sub_Q1",
+      "priceId": "price_1Q",
+      "quantity": 1,
+      "amount": 10,
+      "currency": "usd",
+      "interval": "month",
+      "currentPeriodStart": "2026-10-01T00:00:00Z",
+      "currentPeriodEnd": "2026-11-01T00:00:00Z",
+      "trialEnd": null,
+      "cancelAtPeriodEnd": false,
+      "canceledAt": null,
+      "meterId": "mtr_Q"
+    },
+    "plan": {
+      "code": "per-minute",
+      "name": "Per minute",
+      "description": null,
+      "amount": 10,
+      "currency": "usd",
+      "unit": "minute",
+      "interval": "month",
+      "trialDays": null,
+      "status": "active",
+      "contact": false,
+      "active": true,
+      "productId": "prod_Q",
+      "priceId": "price_1Q",
+      "meterId": "mtr_Q",
+      "features": [],
+      "icon": "https://files.stripe.com/links/MDB8YWNjdF8x"
+    }
+  },
+  "invoices": {
+    "invoices": [
+      {
+        "id": "in_1Q",
+        "number": "A1B2-0001",
+        "status": "paid",
+        "amountDue": 1230,
+        "amountPaid": 1230,
+        "currency": "usd",
+        "created": "2026-10-01T00:05:00Z",
+        "periodStart": "2026-09-01T00:00:00Z",
+        "periodEnd": "2026-10-01T00:00:00Z",
+        "hostedInvoiceUrl": "https://invoice.stripe.com/i/acct_1/test_1",
+        "invoicePdf": "https://pay.stripe.com/invoice/acct_1/test_1/pdf"
+      }
+    ]
+  },
+  "usage": {
+    "days": [
+      {
+        "day": "2026-10-01",
+        "seconds": 61
+      }
+    ]
+  },
+  "handoff": {
+    "url": "https://console.soneeva.com/handoff?code=3q2-7wAbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-A"
+  },
+  "billingPlans": {
+    "plans": [
+      {
+        "code": "per-minute",
+        "name": "Per minute",
+        "description": null,
+        "amount": 10,
+        "currency": "usd",
+        "unit": "minute",
+        "interval": "month",
+        "trialDays": null,
+        "status": "active",
+        "contact": false,
+        "active": true,
+        "productId": "prod_Q",
+        "priceId": "price_1Q",
+        "meterId": "mtr_Q",
+        "features": [],
+        "icon": "https://files.stripe.com/links/MDB8YWNjdF8x",
+        "current": true
+      }
+    ],
+    "subscription": {
+      "status": "active",
+      "active": true,
+      "planCode": "per-minute",
+      "customerId": "cus_Q1",
+      "subscriptionId": "sub_Q1",
+      "priceId": "price_1Q",
+      "quantity": 1,
+      "amount": 10,
+      "currency": "usd",
+      "interval": "month",
+      "currentPeriodStart": "2026-10-01T00:00:00Z",
+      "currentPeriodEnd": "2026-11-01T00:00:00Z",
+      "trialEnd": null,
+      "cancelAtPeriodEnd": false,
+      "canceledAt": null,
+      "meterId": "mtr_Q"
+    }
+  },
+  "checkout": {
+    "url": "https://checkout.stripe.com/c/pay/cs_test_..."
+  },
+  "portal": {
+    "url": "https://billing.stripe.com/p/session/test_..."
+  },
+  "servicepersonCard": {
+    "uid": "sp_sanne",
+    "name": "Sanne de Vries",
+    "phone": "+31600000001",
+    "email": "sanne@example.com"
+  },
+  "handoffRedeem": {
+    "code": "3q2-7wAbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-A"
+  },
+  "handoffRedeemed": {
+    "uid": "sp-demo-1",
+    "businessId": "pizzaroma1",
+    "displayName": "Sanne de Vries",
+    "email": "sanne@example.com",
+    "grant": {
+      "scopes": [
+        "overview.view",
+        "menu.edit"
+      ],
+      "roleId": "helper",
+      "until": "2026-10-12T17:00:00+00:00",
+      "blocked": false
+    }
+  },
+  "mediaSaved": {
+    "path": "businesses/pizzaroma1/avatar",
+    "updatedAt": "2026-10-11T09:30:00+00:00"
+  },
+  "mediaDeleted": {
+    "deleted": true
+  },
+  "selfPatch": {
+    "displayName": "Marco Rossi",
+    "password": "new-secret-1"
+  },
+  "passwordResetRequest": {
+    "email": "marco@example.com"
+  },
+  "passwordResetAccepted": {
+    "accepted": true
+  },
+  "branches": {
+    "branches": [
+      {
+        "id": "main",
+        "name": "Pizza Roma",
+        "phone": "+31201234567",
+        "address": "Dam 1, Amsterdam"
+      }
+    ]
+  },
+  "ivrNumbers": {
+    "numbers": [
+      {
+        "phoneNumber": "+31201112222",
+        "configured": true,
+        "config": {
+          "direct": false,
+          "greeting": "opening",
+          "options": [
+            {
+              "digit": "1",
+              "action": "agent",
+              "branchId": "main",
+              "audio": null,
+              "human": null
+            },
+            {
+              "digit": "2",
+              "action": "audio",
+              "branchId": null,
+              "audio": "complaints-menu",
+              "human": null
+            },
+            {
+              "digit": "3",
+              "action": "human",
+              "branchId": null,
+              "audio": null,
+              "human": {
+                "phone": "+31612345678",
+                "ringSeconds": 20,
+                "fallback": "audio",
+                "fallbackAudio": "closed"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "ivrNumberPut": {
+    "direct": false,
+    "greeting": "opening",
+    "options": [
+      {
+        "digit": "1",
+        "action": "agent",
+        "branchId": "main",
+        "audio": null,
+        "human": null
+      },
+      {
+        "digit": "2",
+        "action": "audio",
+        "branchId": null,
+        "audio": "complaints-menu",
+        "human": null
+      },
+      {
+        "digit": "3",
+        "action": "human",
+        "branchId": null,
+        "audio": null,
+        "human": {
+          "phone": "+31612345678",
+          "ringSeconds": 20,
+          "fallback": "audio",
+          "fallbackAudio": "closed"
+        }
+      }
+    ]
+  },
+  "ivrNumberSaved": {
+    "phoneNumber": "+31201112222",
+    "configured": true,
+    "config": {
+      "direct": false,
+      "greeting": "opening",
+      "options": [
+        {
+          "digit": "1",
+          "action": "agent",
+          "branchId": "main",
+          "audio": null,
+          "human": null
+        },
+        {
+          "digit": "2",
+          "action": "audio",
+          "branchId": null,
+          "audio": "complaints-menu",
+          "human": null
+        },
+        {
+          "digit": "3",
+          "action": "human",
+          "branchId": null,
+          "audio": null,
+          "human": {
+            "phone": "+31612345678",
+            "ringSeconds": 20,
+            "fallback": "audio",
+            "fallbackAudio": "closed"
+          }
+        }
+      ]
+    },
+    "restarting": true
+  },
+  "audios": {
+    "audios": [
+      {
+        "name": "opening",
+        "text": "Welkom bij Pizza Roma. Voor een bestelling, druk 1.",
+        "language": "nl",
+        "version": 2,
+        "status": "ready",
+        "reason": "",
+        "updatedAt": "2026-10-12T10:00:00+00:00",
+        "versions": [
+          {
+            "n": 1,
+            "text": "Welkom bij Pizza Roma.",
+            "at": "2026-10-11T09:00:00+00:00"
+          }
+        ],
+        "usedBy": [
+          "+31201112222"
+        ]
+      }
+    ]
+  },
+  "audio": {
+    "name": "opening",
+    "text": "Welkom bij Pizza Roma. Voor een bestelling, druk 1.",
+    "language": "nl",
+    "version": 2,
+    "status": "ready",
+    "reason": "",
+    "updatedAt": "2026-10-12T10:00:00+00:00",
+    "versions": [
+      {
+        "n": 1,
+        "text": "Welkom bij Pizza Roma.",
+        "at": "2026-10-11T09:00:00+00:00"
+      }
+    ],
+    "usedBy": [
+      "+31201112222"
+    ]
+  },
+  "audioPut": {
+    "text": "Welkom bij Pizza Roma. Voor een bestelling, druk 1.",
+    "language": "nl"
+  },
+  "audioSaved": {
+    "name": "opening",
+    "text": "Welkom bij Pizza Roma. Voor een bestelling, druk 1.",
+    "language": "nl",
+    "version": 2,
+    "status": "ready",
+    "reason": "",
+    "updatedAt": "2026-10-12T10:00:00+00:00",
+    "versions": [
+      {
+        "n": 1,
+        "text": "Welkom bij Pizza Roma.",
+        "at": "2026-10-11T09:00:00+00:00"
+      }
+    ],
+    "usedBy": [
+      "+31201112222"
+    ],
+    "restarting": true
+  },
+  "audioDeleted": {
+    "deleted": true,
+    "restarting": false
+  },
+  "callers": {
+    "callers": [
+      {
+        "phone": "+31612345678",
+        "name": "Jan de Vries",
+        "tags": [
+          "vip",
+          "allergy-nuts"
+        ],
+        "lastCallAt": "2026-10-03T12:00:00.000Z",
+        "branchId": "main",
+        "calls": 3,
+        "updatedAt": "2026-10-12T10:00:00.000Z",
+        "updatedBy": "owner1",
+        "blocked": false,
+        "blockedReason": null,
+        "blockedBy": null,
+        "blockedAt": null
+      }
+    ],
+    "next": "+31612345678"
+  },
+  "callerPatch": {
+    "name": "Jan de Vries",
+    "tags": [
+      "VIP",
+      "Allergy nuts"
+    ]
+  },
+  "caller": {
+    "phone": "+31612345678",
+    "name": "Jan de Vries",
+    "tags": [
+      "vip",
+      "allergy-nuts"
+    ],
+    "lastCallAt": "2026-10-03T12:00:00.000Z",
+    "branchId": "main",
+    "calls": 3,
+    "updatedAt": "2026-10-12T10:00:00.000Z",
+    "updatedBy": "owner1",
+    "blocked": false,
+    "blockedReason": null,
+    "blockedBy": null,
+    "blockedAt": null
+  },
+  "callerBlock": {
+    "phone": "+31687654321",
+    "blockedReason": "Keeps calling to sell energy contracts"
+  },
+  "blockedCaller": {
+    "phone": "+31687654321",
+    "name": "",
+    "tags": [],
+    "lastCallAt": null,
+    "branchId": null,
+    "calls": 0,
+    "updatedAt": null,
+    "updatedBy": null,
+    "blocked": true,
+    "blockedReason": "Keeps calling to sell energy contracts",
+    "blockedBy": "owner1",
+    "blockedAt": "2026-10-14T09:00:00.000Z"
+  },
+  "planStatus": {
+    "active": true,
+    "status": "active",
+    "plan": "per-minute",
+    "periodEnd": "2026-11-01T00:00:00+00:00",
+    "test": false
+  }
+}

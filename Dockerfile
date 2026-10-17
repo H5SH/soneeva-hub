@@ -14,11 +14,11 @@ WORKDIR /srv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-COPY app ./app
-COPY main.py ./
+COPY src ./src
+COPY app.py main.py settings.json scopes.json ./
 
 RUN useradd --create-home --uid 1001 service && chown -R service:service /srv
 USER service
 
 EXPOSE 8080
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["python", "app.py"]

@@ -1,0 +1,560 @@
+{
+  "en": {
+    "payment.admin": {
+      "label": "Payment admin",
+      "description": "Sees every app and business in the internal app."
+    },
+    "payment.app.view": {
+      "label": "View apps",
+      "description": "See registered apps and their settings."
+    },
+    "payment.app.create": {
+      "label": "Create apps",
+      "description": "Register a new app."
+    },
+    "payment.app.update": {
+      "label": "Edit apps",
+      "description": "Change an app's name, return URL and hosts."
+    },
+    "payment.app.delete": {
+      "label": "Delete apps",
+      "description": "Remove an app with no live subscriptions."
+    },
+    "payment.plan.view": {
+      "label": "View plans",
+      "description": "See plans, prices and units."
+    },
+    "payment.plan.create": {
+      "label": "Create plans",
+      "description": "Add a plan and its Stripe price."
+    },
+    "payment.plan.update": {
+      "label": "Edit plans",
+      "description": "Change a plan; a new amount makes a new price version."
+    },
+    "payment.plan.delete": {
+      "label": "Delete plans",
+      "description": "Remove a plan and archive its Stripe price."
+    },
+    "payment.coupon.view": {
+      "label": "View coupons",
+      "description": "See an app's 100%-off codes."
+    },
+    "payment.coupon.create": {
+      "label": "Create coupons",
+      "description": "Issue a 100%-off code."
+    },
+    "payment.coupon.update": {
+      "label": "Edit coupons",
+      "description": "Change a coupon's limits."
+    },
+    "payment.coupon.delete": {
+      "label": "Deactivate coupons",
+      "description": "Stop a code from being redeemed."
+    },
+    "payment.key.rotate": {
+      "label": "Rotate keys",
+      "description": "Issue a new signing key for an app."
+    },
+    "payment.business.view": {
+      "label": "View businesses",
+      "description": "See businesses, their plan and billing status."
+    },
+    "payment.invoice.view": {
+      "label": "View invoices",
+      "description": "See a business's Stripe invoices."
+    },
+    "payment.usage.view": {
+      "label": "View usage",
+      "description": "See a business's calls and minutes per day."
+    },
+    "hub.business.create": {
+      "label": "Sign up businesses",
+      "description": "Create a business and its database."
+    },
+    "hub.business.view": {
+      "label": "Read businesses",
+      "description": "Read businesses through the API."
+    },
+    "hub.business.update": {
+      "label": "Update businesses",
+      "description": "Set status, configured and serviceperson."
+    },
+    "hub.serviceperson.view": {
+      "label": "List servicepersons",
+      "description": "See who can set businesses up."
+    },
+    "hub.voice.update": {
+      "label": "Voice settings",
+      "description": "Change the agent's language and voice; restarts it."
+    },
+    "hub.number.view": {
+      "label": "Search numbers",
+      "description": "See phone numbers available to buy."
+    },
+    "hub.number.buy": {
+      "label": "Buy numbers",
+      "description": "Buy a phone number for a business."
+    },
+    "hub.usage.write": {
+      "label": "Report usage",
+      "description": "Report call seconds for billing."
+    },
+    "hub.plan.view": {
+      "label": "Read plan status",
+      "description": "Whether the business's own plan grants service."
+    },
+    "hub.account.view": {
+      "label": "View accounts",
+      "description": "Read sign-in accounts through the API."
+    },
+    "hub.account.create": {
+      "label": "Create accounts",
+      "description": "Create sign-in accounts through the API."
+    },
+    "hub.account.update": {
+      "label": "Change accounts",
+      "description": "Change, disable and reset accounts through the API."
+    },
+    "hub.account.delete": {
+      "label": "Delete accounts",
+      "description": "Delete sign-in accounts through the API."
+    },
+    "hub.account.recover": {
+      "label": "Send reset emails",
+      "description": "Ask karbon-hub to email a password reset link to an address, without naming the account."
+    },
+    "hub.media.view": {
+      "label": "Read images",
+      "description": "Fetch avatars, app icons and logos the acting person may see."
+    },
+    "hub.media.update": {
+      "label": "Change images",
+      "description": "Upload or remove avatars, app icons and logos the acting person may change."
+    },
+    "hub.platform.view": {
+      "label": "View platform data",
+      "description": "Read platform roles, scopes and demo calls through the API."
+    },
+    "hub.payment.view": {
+      "label": "Read payment admin",
+      "description": "Read apps, plans, coupons, businesses, people and roles through the API."
+    },
+    "hub.payment.update": {
+      "label": "Change payment admin",
+      "description": "Change apps, keys, plans, coupons, people and roles through the API."
+    },
+    "hub.handoff.create": {
+      "label": "Hand off to the console",
+      "description": "Send a serviceperson into the console for a business they hold a grant in."
+    },
+    "hub.billing.view": {
+      "label": "Read billing",
+      "description": "Read a business's choosable plans and subscription."
+    },
+    "hub.billing.update": {
+      "label": "Start billing",
+      "description": "Open Stripe Checkout or the customer portal for a business."
+    },
+    "platform.docs.view": {
+      "label": "Read the docs",
+      "description": "See the integration docs in the internal app."
+    },
+    "hub.handoff.redeem": {
+      "label": "Redeem handoffs",
+      "description": "Turn a serviceperson's one-time handoff code into a console session."
+    },
+    "Profile.Write": {
+      "label": "Edit own profile",
+      "description": "Change your own name, password and avatar."
+    },
+    "hub.people.view": {
+      "label": "Read people",
+      "description": "List platform people and roles; read /v1/me."
+    },
+    "hub.people.update": {
+      "label": "Manage people",
+      "description": "Create, change and remove platform people and roles."
+    },
+    "hub.advertisement.view": {
+      "label": "View advertisements",
+      "description": "List and read advertisements and where they are published."
+    },
+    "hub.advertisement.update": {
+      "label": "Change advertisements",
+      "description": "Create, edit, publish, withdraw and delete advertisements."
+    }
+  },
+  "nl": {
+    "payment.admin": {
+      "label": "Betalingsbeheerder",
+      "description": "Ziet elke app en elk bedrijf in de interne app."
+    },
+    "payment.app.view": {
+      "label": "Apps bekijken",
+      "description": "Geregistreerde apps en hun instellingen zien."
+    },
+    "payment.app.create": {
+      "label": "Apps aanmaken",
+      "description": "Een nieuwe app registreren."
+    },
+    "payment.app.update": {
+      "label": "Apps bewerken",
+      "description": "Naam, return-URL en hosts van een app wijzigen."
+    },
+    "payment.app.delete": {
+      "label": "Apps verwijderen",
+      "description": "Een app zonder lopende abonnementen verwijderen."
+    },
+    "payment.plan.view": {
+      "label": "Abonnementen bekijken",
+      "description": "Abonnementen, prijzen en eenheden zien."
+    },
+    "payment.plan.create": {
+      "label": "Abonnementen aanmaken",
+      "description": "Een abonnement en de Stripe-prijs toevoegen."
+    },
+    "payment.plan.update": {
+      "label": "Abonnementen bewerken",
+      "description": "Een abonnement wijzigen; een nieuw bedrag maakt een nieuwe prijsversie."
+    },
+    "payment.plan.delete": {
+      "label": "Abonnementen verwijderen",
+      "description": "Een abonnement verwijderen en de Stripe-prijs archiveren."
+    },
+    "payment.coupon.view": {
+      "label": "Kortingscodes bekijken",
+      "description": "De 100%-kortingscodes van een app zien."
+    },
+    "payment.coupon.create": {
+      "label": "Kortingscodes aanmaken",
+      "description": "Een 100%-kortingscode uitgeven."
+    },
+    "payment.coupon.update": {
+      "label": "Kortingscodes bewerken",
+      "description": "De limieten van een code wijzigen."
+    },
+    "payment.coupon.delete": {
+      "label": "Kortingscodes deactiveren",
+      "description": "Voorkomen dat een code nog wordt gebruikt."
+    },
+    "payment.key.rotate": {
+      "label": "Sleutels vernieuwen",
+      "description": "Een nieuwe ondertekeningssleutel voor een app uitgeven."
+    },
+    "payment.business.view": {
+      "label": "Bedrijven bekijken",
+      "description": "Bedrijven, hun abonnement en betaalstatus zien."
+    },
+    "payment.invoice.view": {
+      "label": "Facturen bekijken",
+      "description": "De Stripe-facturen van een bedrijf zien."
+    },
+    "payment.usage.view": {
+      "label": "Verbruik bekijken",
+      "description": "Gesprekken en minuten per dag van een bedrijf zien."
+    },
+    "hub.business.create": {
+      "label": "Bedrijven registreren",
+      "description": "Een bedrijf en de database aanmaken."
+    },
+    "hub.business.view": {
+      "label": "Bedrijven lezen",
+      "description": "Bedrijven via de API lezen."
+    },
+    "hub.business.update": {
+      "label": "Bedrijven bijwerken",
+      "description": "Status, configuratie en servicemedewerker instellen."
+    },
+    "hub.serviceperson.view": {
+      "label": "Servicemedewerkers tonen",
+      "description": "Zien wie bedrijven kan inrichten."
+    },
+    "hub.voice.update": {
+      "label": "Steminstellingen",
+      "description": "Taal en stem van de agent wijzigen; herstart de agent."
+    },
+    "hub.number.view": {
+      "label": "Nummers zoeken",
+      "description": "Beschikbare telefoonnummers zien."
+    },
+    "hub.number.buy": {
+      "label": "Nummers kopen",
+      "description": "Een telefoonnummer voor een bedrijf kopen."
+    },
+    "hub.usage.write": {
+      "label": "Verbruik melden",
+      "description": "Gespreksseconden voor facturering melden."
+    },
+    "hub.plan.view": {
+      "label": "Abonnementsstatus lezen",
+      "description": "Of het eigen abonnement van het bedrijf dienst geeft."
+    },
+    "hub.account.view": {
+      "label": "Accounts bekijken",
+      "description": "Inlogaccounts via de API lezen."
+    },
+    "hub.account.create": {
+      "label": "Accounts aanmaken",
+      "description": "Inlogaccounts via de API aanmaken."
+    },
+    "hub.account.update": {
+      "label": "Accounts wijzigen",
+      "description": "Accounts via de API wijzigen, blokkeren en resetten."
+    },
+    "hub.account.delete": {
+      "label": "Accounts verwijderen",
+      "description": "Inlogaccounts via de API verwijderen."
+    },
+    "hub.account.recover": {
+      "label": "Herstelmails versturen",
+      "description": "karbon-hub een link om het wachtwoord te herstellen laten mailen, zonder het account te noemen."
+    },
+    "hub.media.view": {
+      "label": "Afbeeldingen lezen",
+      "description": "Avatars, app-iconen en logo's ophalen die de persoon mag zien."
+    },
+    "hub.media.update": {
+      "label": "Afbeeldingen wijzigen",
+      "description": "Avatars, app-iconen en logo's uploaden of verwijderen die de persoon mag wijzigen."
+    },
+    "hub.platform.view": {
+      "label": "Platformgegevens bekijken",
+      "description": "Platformrollen, scopes en demogesprekken via de API lezen."
+    },
+    "hub.payment.view": {
+      "label": "Betaalbeheer lezen",
+      "description": "Apps, abonnementen, kortingscodes, bedrijven, mensen en rollen lezen via de API."
+    },
+    "hub.payment.update": {
+      "label": "Betaalbeheer wijzigen",
+      "description": "Apps, sleutels, abonnementen, kortingscodes, mensen en rollen wijzigen via de API."
+    },
+    "hub.handoff.create": {
+      "label": "Doorsturen naar de console",
+      "description": "Een servicemedewerker de console in sturen voor een bedrijf waar hij toegang toe heeft."
+    },
+    "hub.billing.view": {
+      "label": "Facturatie lezen",
+      "description": "De te kiezen abonnementen en het abonnement van een bedrijf lezen."
+    },
+    "hub.billing.update": {
+      "label": "Facturatie starten",
+      "description": "Stripe Checkout of het klantportaal openen voor een bedrijf."
+    },
+    "platform.docs.view": {
+      "label": "Documentatie lezen",
+      "description": "De integratiedocumentatie in de interne app bekijken."
+    },
+    "hub.handoff.redeem": {
+      "label": "Doorsturen inwisselen",
+      "description": "Een eenmalige doorstuurcode van een servicemedewerker omzetten in een consolesessie."
+    },
+    "Profile.Write": {
+      "label": "Eigen profiel bewerken",
+      "description": "Je eigen naam, wachtwoord en avatar wijzigen."
+    },
+    "hub.people.view": {
+      "label": "Mensen lezen",
+      "description": "Platformmensen en rollen bekijken; /v1/me lezen."
+    },
+    "hub.people.update": {
+      "label": "Mensen beheren",
+      "description": "Platformmensen en rollen aanmaken, wijzigen en verwijderen."
+    },
+    "hub.advertisement.view": {
+      "label": "Advertenties bekijken",
+      "description": "Advertenties lezen en zien waar ze gepubliceerd zijn."
+    },
+    "hub.advertisement.update": {
+      "label": "Advertenties wijzigen",
+      "description": "Advertenties maken, bewerken, publiceren, intrekken en verwijderen."
+    }
+  },
+  "de": {
+    "payment.admin": {
+      "label": "Zahlungsadmin",
+      "description": "Sieht jede App und jedes Unternehmen in der internen App."
+    },
+    "payment.app.view": {
+      "label": "Apps ansehen",
+      "description": "Registrierte Apps und ihre Einstellungen sehen."
+    },
+    "payment.app.create": {
+      "label": "Apps anlegen",
+      "description": "Eine neue App registrieren."
+    },
+    "payment.app.update": {
+      "label": "Apps bearbeiten",
+      "description": "Name, Rücksprung-URL und Hosts einer App ändern."
+    },
+    "payment.app.delete": {
+      "label": "Apps löschen",
+      "description": "Eine App ohne laufende Abonnements entfernen."
+    },
+    "payment.plan.view": {
+      "label": "Tarife ansehen",
+      "description": "Tarife, Preise und Einheiten sehen."
+    },
+    "payment.plan.create": {
+      "label": "Tarife anlegen",
+      "description": "Einen Tarif und seinen Stripe-Preis anlegen."
+    },
+    "payment.plan.update": {
+      "label": "Tarife bearbeiten",
+      "description": "Einen Tarif ändern; ein neuer Betrag erzeugt eine neue Preisversion."
+    },
+    "payment.plan.delete": {
+      "label": "Tarife löschen",
+      "description": "Einen Tarif entfernen und seinen Stripe-Preis archivieren."
+    },
+    "payment.coupon.view": {
+      "label": "Gutscheine ansehen",
+      "description": "Die 100-%-Codes einer App sehen."
+    },
+    "payment.coupon.create": {
+      "label": "Gutscheine anlegen",
+      "description": "Einen 100-%-Code ausgeben."
+    },
+    "payment.coupon.update": {
+      "label": "Gutscheine bearbeiten",
+      "description": "Die Grenzen eines Gutscheins ändern."
+    },
+    "payment.coupon.delete": {
+      "label": "Gutscheine deaktivieren",
+      "description": "Verhindern, dass ein Code eingelöst wird."
+    },
+    "payment.key.rotate": {
+      "label": "Schlüssel rotieren",
+      "description": "Einen neuen Signaturschlüssel für eine App ausgeben."
+    },
+    "payment.business.view": {
+      "label": "Unternehmen ansehen",
+      "description": "Unternehmen, ihren Tarif und Zahlungsstatus sehen."
+    },
+    "payment.invoice.view": {
+      "label": "Rechnungen ansehen",
+      "description": "Die Stripe-Rechnungen eines Unternehmens sehen."
+    },
+    "payment.usage.view": {
+      "label": "Nutzung ansehen",
+      "description": "Anrufe und Minuten pro Tag eines Unternehmens sehen."
+    },
+    "hub.business.create": {
+      "label": "Unternehmen registrieren",
+      "description": "Ein Unternehmen und seine Datenbank anlegen."
+    },
+    "hub.business.view": {
+      "label": "Unternehmen lesen",
+      "description": "Unternehmen über die API lesen."
+    },
+    "hub.business.update": {
+      "label": "Unternehmen aktualisieren",
+      "description": "Status, Konfiguration und Servicemitarbeiter setzen."
+    },
+    "hub.serviceperson.view": {
+      "label": "Servicemitarbeiter auflisten",
+      "description": "Sehen, wer Unternehmen einrichten kann."
+    },
+    "hub.voice.update": {
+      "label": "Spracheinstellungen",
+      "description": "Sprache und Stimme des Agenten ändern; startet ihn neu."
+    },
+    "hub.number.view": {
+      "label": "Nummern suchen",
+      "description": "Verfügbare Telefonnummern sehen."
+    },
+    "hub.number.buy": {
+      "label": "Nummern kaufen",
+      "description": "Eine Telefonnummer für ein Unternehmen kaufen."
+    },
+    "hub.usage.write": {
+      "label": "Nutzung melden",
+      "description": "Anrufsekunden für die Abrechnung melden."
+    },
+    "hub.plan.view": {
+      "label": "Tarifstatus lesen",
+      "description": "Ob der eigene Tarif des Unternehmens Service gewährt."
+    },
+    "hub.account.view": {
+      "label": "Konten ansehen",
+      "description": "Anmeldekonten über die API lesen."
+    },
+    "hub.account.create": {
+      "label": "Konten anlegen",
+      "description": "Anmeldekonten über die API anlegen."
+    },
+    "hub.account.update": {
+      "label": "Konten ändern",
+      "description": "Konten über die API ändern, sperren und zurücksetzen."
+    },
+    "hub.account.delete": {
+      "label": "Konten löschen",
+      "description": "Anmeldekonten über die API löschen."
+    },
+    "hub.account.recover": {
+      "label": "Rücksetz-E-Mails senden",
+      "description": "karbon-hub einen Link zum Zurücksetzen des Passworts an eine Adresse senden lassen, ohne das Konto zu nennen."
+    },
+    "hub.media.view": {
+      "label": "Bilder lesen",
+      "description": "Avatare, App-Symbole und Logos abrufen, die die Person sehen darf."
+    },
+    "hub.media.update": {
+      "label": "Bilder ändern",
+      "description": "Avatare, App-Symbole und Logos hochladen oder entfernen, die die Person ändern darf."
+    },
+    "hub.platform.view": {
+      "label": "Plattformdaten ansehen",
+      "description": "Plattformrollen, Scopes und Demo-Anrufe über die API lesen."
+    },
+    "hub.payment.view": {
+      "label": "Zahlungsverwaltung lesen",
+      "description": "Apps, Tarife, Gutscheine, Unternehmen, Personen und Rollen über die API lesen."
+    },
+    "hub.payment.update": {
+      "label": "Zahlungsverwaltung ändern",
+      "description": "Apps, Schlüssel, Tarife, Gutscheine, Personen und Rollen über die API ändern."
+    },
+    "hub.handoff.create": {
+      "label": "An die Konsole übergeben",
+      "description": "Einen Servicemitarbeiter für ein freigegebenes Unternehmen in die Konsole schicken."
+    },
+    "hub.billing.view": {
+      "label": "Abrechnung lesen",
+      "description": "Wählbare Tarife und das Abonnement eines Unternehmens lesen."
+    },
+    "hub.billing.update": {
+      "label": "Abrechnung starten",
+      "description": "Stripe Checkout oder das Kundenportal für ein Unternehmen öffnen."
+    },
+    "platform.docs.view": {
+      "label": "Dokumentation lesen",
+      "description": "Die Integrationsdokumentation in der internen App ansehen."
+    },
+    "hub.handoff.redeem": {
+      "label": "Übergaben einlösen",
+      "description": "Den einmaligen Übergabecode eines Servicemitarbeiters in eine Konsolensitzung umwandeln."
+    },
+    "Profile.Write": {
+      "label": "Eigenes Profil bearbeiten",
+      "description": "Den eigenen Namen, das Passwort und den Avatar ändern."
+    },
+    "hub.people.view": {
+      "label": "Personen lesen",
+      "description": "Plattformpersonen und Rollen sehen; /v1/me lesen."
+    },
+    "hub.people.update": {
+      "label": "Personen verwalten",
+      "description": "Plattformpersonen und Rollen anlegen, ändern und entfernen."
+    },
+    "hub.advertisement.view": {
+      "label": "Anzeigen ansehen",
+      "description": "Anzeigen lesen und sehen, wo sie veröffentlicht sind."
+    },
+    "hub.advertisement.update": {
+      "label": "Anzeigen ändern",
+      "description": "Anzeigen erstellen, bearbeiten, veröffentlichen, zurückziehen und löschen."
+    }
+  }
+}

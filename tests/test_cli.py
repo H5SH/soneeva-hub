@@ -1,47 +1,20 @@
-"""The CLI drives the same services as the dashboard. These check the wiring, not Firestore."""
+"""The CLI drives the same services as the API. These check the wiring, not Firestore."""
 
 import asyncio
 
 import pytest
 
-from app.models.admin import SUPERADMIN, Scope
-from app.models.db import Collection
-from app.services.admin import AdminError, AdminService
-from app.services.billing import BillingService
-from app.services.coupons import CouponService
-from app.services.roles import RoleStore
-from app.services.tokens.keys import KeyStore
 from cli.__main__ import parser
-from cli.context import Context
 from cli.output import Printer
-from tests.conftest import FakeDatabase, FakePayment
-
-
-class FakeAuth:
-    def __init__(self): self.created, self.deleted = [], []
-
-    async def create_user(self, email):
-        self.created.append(email)
-        return "uid-new", "https://reset.link/abc"
-
-    async def delete_user(self, uid): self.deleted.append(uid)
+from src.models.admin import SUPERADMIN, Scope
+from src.models.db import Default
+from src.services.errors import AdminError
 
 
 @pytest.fixture
-def ctx():
-    db = FakeDatabase()
-    db.rows[(Collection.ROLES.value, SUPERADMIN)] = {"scopes": [str(s) for s in Scope]}
-    payment = FakePayment()
-    roles = RoleStore(db)
-    context = Context(
-        admin=AdminService(db, KeyStore(db), roles, payment),
-        coupons=CouponService(db, payment),
-        billing=BillingService(db, payment),
-        auth=FakeAuth(),
-        settings=None,
-    )
-    context.db, context.payment = db, payment  # for assertions
-    return context
+def ctx(services):
+    services.db.rows[(Default.ROLES.value, SUPERADMIN)] = {"scopes": [str(s) for s in Scope]}
+    return services
 
 
 def invoke(ctx, capsys, *argv) -> str:
@@ -68,29 +41,31 @@ def test_plan_save_creates_a_stripe_price_for_a_paid_plan(ctx, capsys):
     invoke(ctx, capsys, "app:create", "snapback")
     out = invoke(ctx, capsys, "plan:save", "snapback", "starter",
                  "--name", "Starter", "--amount", "2900", "--trial", "7")
-    assert ctx.payment.prices == [("snapback", "starter", 2900)]
-    assert "price=price_snapback_starter" in out
+    assert ctx.payment.live.prices == ["price_starter_1"]
+    assert ctx.payment.live.products["prod_snapback_starter"].trial_days == 7
+    assert "price=price_starter_1" in out
 
 
 def test_plan_save_without_an_amount_is_the_free_tier(ctx, capsys):
     invoke(ctx, capsys, "app:create", "snapback")
     out = invoke(ctx, capsys, "plan:save", "snapback", "free", "--name", "Free")
-    assert ctx.payment.prices == []
-    assert "free tier" in out
+    assert ctx.payment.live.prices == [] and "prod_snapback_free" in ctx.payment.live.products
+    assert "no price" in out
 
 
 def test_plan_save_is_idempotent_and_does_not_re_create_the_price(ctx, capsys):
     invoke(ctx, capsys, "app:create", "snapback")
     invoke(ctx, capsys, "plan:save", "snapback", "pro", "--amount", "7500")
     invoke(ctx, capsys, "plan:save", "snapback", "pro", "--amount", "7500", "--name", "Pro")
-    assert len(ctx.payment.prices) == 1
+    invoke(ctx, capsys, "plan:save", "snapback", "pro", "--name", "Pro")  # no amount keeps the price
+    assert ctx.payment.live.prices == ["price_pro_1"] and ctx.payment.live.archived == []
 
 
 def test_coupon_create_resolves_the_apps_products_itself(ctx, capsys):
     invoke(ctx, capsys, "app:create", "snapback")
     invoke(ctx, capsys, "plan:save", "snapback", "pro", "--amount", "7500")
     invoke(ctx, capsys, "coupon:create", "snapback", "--code", "LAUNCH99")
-    assert ctx.payment.discounts == [("LAUNCH99", ["prod_snapback_pro"])]
+    assert ctx.payment.live.coupon_products == {"LAUNCH99": ["prod_snapback_pro"]}
 
 
 def test_coupon_create_refuses_when_there_is_nothing_to_discount(ctx, capsys):
@@ -119,10 +94,10 @@ def test_role_save_all_expands_to_every_scope(ctx, capsys):
     assert str(Scope.KEY_ROTATE) in out
 
 
-def test_user_create_prints_the_reset_link(ctx, capsys):
-    out = invoke(ctx, capsys, "user:create", "dev@codinative.com")
-    assert "https://reset.link/abc" in out
-    assert ctx.auth.created == ["dev@codinative.com"]
+def test_person_create_prints_the_reset_link(ctx, capsys):
+    out = invoke(ctx, capsys, "person:create", "dev@soneeva.com")
+    assert "https://reset.example/dev@soneeva.com" in out
+    assert any(a.email == "dev@soneeva.com" for a in ctx.accounts.accounts.values())
 
 
 def test_json_output_is_parseable(ctx, capsys):
@@ -130,3 +105,20 @@ def test_json_output_is_parseable(ctx, capsys):
     invoke(ctx, capsys, "app:create", "snapback")
     out = invoke(ctx, capsys, "--json", "app:show", "snapback")
     assert json.loads(out)["id"] == "snapback"
+
+
+def test_person_save_gives_an_existing_account_its_first_record(ctx, capsys):
+    ctx.accounts.add("boss", email="boss@soneeva.com")
+    invoke(ctx, capsys, "person:save", "boss", "--role", SUPERADMIN)
+    assert ctx.db.rows[(Default.USERS.value, "boss")]["role"] == SUPERADMIN
+    with pytest.raises(AdminError, match="No such person"):
+        invoke(ctx, capsys, "person:save", "ghost", "--role", SUPERADMIN)
+
+
+def test_db_prune_lists_then_deletes_only_unused_collections(ctx, capsys):
+    ctx.db.rows[("resources", "roles")] = {"superadmin": ["*"]}
+    ctx.db.rows[(Default.ROLES.value, "sales")] = {"scopes": []}
+    assert "resources" in invoke(ctx, capsys, "db:prune")
+    assert ("resources", "roles") in ctx.db.rows
+    invoke(ctx, capsys, "db:prune", "--apply")
+    assert ("resources", "roles") not in ctx.db.rows and (Default.ROLES.value, "sales") in ctx.db.rows

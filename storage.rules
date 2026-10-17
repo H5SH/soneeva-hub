@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// The bucket is private: no browser or client SDK reads or writes it. Only karbon-hub's
+// service account does (IAM, which these rules do not govern), and serves files through /v1/media.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

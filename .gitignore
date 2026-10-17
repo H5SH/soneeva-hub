@@ -21,3 +21,5 @@ serviceAccountKey.json
 .vscode/
 *.log
 *ServiceAccount*
+.deploy-local/
+

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Key recovery</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: light-dark(#f4f4f5, #0d0e10);
+    --surface: light-dark(#ffffff, #15161a);
+    --surface-2: light-dark(#f4f4f6, #1b1c21);
+    --line: light-dark(#e3e3e7, #2a2b31);
+    --line-strong: light-dark(#cdced4, #3b3c44);
+    --text: light-dark(#18181b, #ececef);
+    --text-2: light-dark(#4f4f58, #b6b6be);
+    --text-3: light-dark(#6c6c76, #8f8f99);
+    --accent: light-dark(#1e4fd0, #86a8ff);
+    --accent-hover: light-dark(#1a43b0, #a3bdff);
+    --accent-fg: light-dark(#ffffff, #0a0f1f);
+    --danger: light-dark(#b42318, #ff8f85);
+    --danger-soft: light-dark(#fdf0ef, #2c1615);
+    --warn: light-dark(#8a5300, #f0b44c);
+    --warn-soft: light-dark(#fdf5e6, #2a2010);
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+    background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans);
+  }
+  main { width: 100%; max-width: 460px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 24px; }
+  .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--text-3); font-size: 12px; }
+  .brand i { width: 8px; height: 8px; border-radius: 2px; background: var(--accent); }
+  h1 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
+  p { margin: 0 0 16px; color: var(--text-2); }
+  label { display: block; margin-bottom: 4px; font-weight: 500; font-size: 13px; }
+  input, select {
+    width: 100%; margin-bottom: 14px; padding: 8px 10px; font: inherit; color: var(--text);
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 3px;
+  }
+  input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button, .button {
+    display: inline-block; padding: 8px 14px; font: inherit; font-weight: 500; text-decoration: none;
+    border-radius: 3px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg);
+    cursor: pointer; white-space: nowrap;
+  }
+  button:hover, .button:hover { background: var(--accent-hover); }
+  button.quiet { background: transparent; color: var(--text-2); border-color: var(--line-strong); }
+  button.quiet:hover { background: var(--surface-2); }
+  .wide { width: 100%; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .who { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--text-3); font-size: 13px; }
+  .note { padding: 8px 10px; margin-bottom: 16px; border-radius: 3px; font-size: 13px; }
+  .error { background: var(--danger-soft); color: var(--danger); }
+  .warn { background: var(--warn-soft); color: var(--warn); }
+  dl { margin: 0 0 12px; }
+  dt { font-size: 12px; color: var(--text-3); }
+  dd { margin: 0 0 10px; font-family: var(--mono); word-break: break-all; }
+  pre {
+    margin: 0 0 12px; padding: 10px; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-all;
+    font: 12px/1.5 var(--mono); background: var(--surface-2); border: 1px solid var(--line); border-radius: 3px;
+  }
+  .copy { padding: 2px 8px; font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <div class="brand"><i></i>Soneeva · key recovery</div>
+    <h1>Key recovery</h1>
+    {% if not configured %}
+      <p>Not configured. Set <code>FIREBASE_API_KEY</code> and <code>AUTH_SECRET</code> in the hub's env.</p>
+    {% elif rotated %}
+      <p>A new key for <strong>{{ rotated.tool }}</strong>. The old keys are retired.</p>
+      <div class="note warn">Shown once. Copy it into the tool's env now; it is not stored anywhere.</div>
+      <dl>
+        <dt>Tool id</dt><dd>{{ rotated.tool }}</dd>
+        <dt>Key id</dt><dd class="row"><span>{{ rotated.kid }}</span><button class="quiet copy" data-copy="kid">Copy</button></dd>
+      </dl>
+      <div class="row"><label>Env block</label><button class="quiet copy" data-copy="env">Copy</button></div>
+      <pre id="env">{{ rotated.env }}</pre>
+      <span id="kid" hidden>{{ rotated.kid }}</span>
+      <a class="button" href="/recover">Done</a>
+    {% elif person %}
+      <p>Rotate an internal tool's signing key when the admin dashboard is down. App keys rotate in the admin dashboard.</p>
+      {% if error %}<div class="note error">{{ error }}</div>{% endif %}
+      <form method="post" action="/recover/rotate" onsubmit="return confirm('Rotate the key for ' + this.tool.value + '? Its current key stops working.')">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label for="tool">Tool</label>
+        <select id="tool" name="tool" required>
+          {% for tool in tools %}<option value="{{ tool.id }}">{{ tool.name }} ({{ tool.id }})</option>{% endfor %}
+        </select>
+        <button class="wide" {% if not tools %}disabled{% endif %}>Rotate key</button>
+      </form>
+      <p class="note">soneeva-voice is not listed: its keys are per business and rotate when the voice is redeployed.</p>
+      {% if own %}
+      <form class="who row" method="post" action="/recover/sign-out">
+        <span>{{ person.email or person.uid }} · {{ person.role }}</span>
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="quiet">Sign out</button>
+      </form>
+      {% else %}
+      <div class="who row"><span>{{ person.email or person.uid }} · {{ person.role }} · signed in through the admin dashboard</span></div>
+      {% endif %}
+    {% else %}
+      <p>Sign in with a platform account that may rotate keys.</p>
+      {% if error %}<div class="note error">{{ error }}</div>{% endif %}
+      <form method="post" action="/recover/sign-in">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="username" value="{{ email or '' }}" required>
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button class="wide">Sign in</button>
+      </form>
+    {% endif %}
+  </div>
+</main>
+<script>
+  document.querySelectorAll("[data-copy]").forEach((button) => button.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(document.getElementById(button.dataset.copy).textContent);
+    button.textContent = "Copied";
+  }));
+</script>
+</body>
+</html>

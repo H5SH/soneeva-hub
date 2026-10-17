@@ -1,8 +1,8 @@
 import pytest
 
-from app.models.app import AppConfig, PlanConfig
+from src.models.app import AppConfig, Plan
 
-PLANS = [PlanConfig(code="free", name="Free")]
+PLANS = [Plan(code="free", name="Free")]
 
 
 def app(**kwargs) -> AppConfig:

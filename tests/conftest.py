@@ -7,14 +7,22 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from app.models.auth import Audience
-from app.models.db import DELETED_FLAG, Collection
-from app.services.db.base import Database
-from app.services.tokens.keys import KeyStore
-from app.services.tokens.replay import ReplayGuard
-from app.services.tokens.verify import TokenVerifier
+from src.auth import FakeAccounts
+from src.db import FakeDatabase
+from src.deploy import FakeDeployer
+from src.models.auth import Audience
+from src.numbers import FakeNumbers
+from src.payment import FakePayment
+from src.remote import FakeRemote
+from src.services.modes import ByMode
+from src.services.tokens.keys import KeyStore
+from src.services.tokens.replay import ReplayGuard
+from src.services.tokens.verify import TokenVerifier
+from src.storage import FakeStorage
+from src.wiring import Services, assemble
 
 APP_ID = "softbox"
+TOOLS = ("karbon-admin", "soneeva-voice")
 KID = "test-key"
 
 
@@ -35,53 +43,6 @@ def keypair() -> tuple[str, str]:
     )
 
 
-class FakeDatabase(Database):
-    """In-memory stand-in. The auth path only ever reads, so the rest can stay minimal."""
-
-    def __init__(self, rows: dict[str, dict[str, Any]] | None = None) -> None:
-        self.rows: dict[tuple[str, str], dict[str, Any]] = {
-            (Collection.APPLICATIONS.value, k): v for k, v in (rows or {}).items()
-        }
-
-    async def get_rows(self, collection, filters=None, limit=None, order_by=None, descending=False):
-        # `| {"id": ...}` mirrors the real one: Firestore keeps the document id outside the
-        # document, and callers rely on it being folded in.
-        out = [
-            v | {"id": row_id}
-            for (c, row_id), v in self.rows.items()
-            if c == collection.value and not v.get(DELETED_FLAG)
-        ]
-        for field, value in (filters or {}).items():
-            out = [r for r in out if r.get(field) == value]
-        return out[:limit] if limit else out
-
-    async def get_row(self, collection, row_id):
-        row = self.rows.get((collection.value, row_id))
-        if row is None or row.get(DELETED_FLAG):
-            return None
-        return row | {"id": row_id}
-
-    async def create_row(self, collection, row_id, data):
-        if (collection.value, row_id) in self.rows:
-            return False
-        self.rows[(collection.value, row_id)] = data
-        return True
-
-    async def set_row(self, collection, row_id, data):
-        # Merges, like the real one — a partial write must not wipe the other fields.
-        row = self.rows.setdefault((collection.value, row_id), {})
-        row.update(data)
-        return row
-
-    async def delete_row(self, collection, row_id):
-        # Soft, like the real one: the row stays and reads start returning None.
-        row = self.rows.get((collection.value, row_id))
-        if row is None or row.get(DELETED_FLAG):
-            return False
-        row[DELETED_FLAG] = True
-        return True
-
-
 @pytest.fixture
 def keys() -> tuple[str, str]:
     return keypair()
@@ -93,13 +54,13 @@ def application(keys) -> dict[str, Any]:
     return {
         "name": "Softbox",
         "status": "active",
-        "keys": [{"kid": KID, "alg": "EdDSA", "public_key": public_pem, "status": "active"}],
+        "keys": [{"kid": KID, "alg": "EdDSA", "publicKey": public_pem, "status": "active"}],
     }
 
 
 @pytest.fixture
 def verifier(application) -> TokenVerifier:
-    return TokenVerifier(KeyStore(FakeDatabase({APP_ID: application})), ReplayGuard())
+    return TokenVerifier(KeyStore(FakeDatabase({("apps", APP_ID): application})), ReplayGuard())
 
 
 @pytest.fixture
@@ -134,23 +95,52 @@ def sign(keys):
     return _sign
 
 
-class FakePayment:
-    """Stripe stand-in. Records what it was asked to create so a test can assert on it."""
+@pytest.fixture
+def services() -> Services:
+    """Every service, wired as in production, over in-memory fakes."""
+    db = FakeDatabase()
+    accounts = FakeAccounts()
+    accounts.add("owner1", username="owner1")
+    built = assemble(
+        settings=None, db=db, payment=ByMode(FakePayment(), FakePayment()), accounts=accounts,
+        storage=FakeStorage(), deployer=FakeDeployer(), numbers=FakeNumbers(), remote=FakeRemote(),
+    )
+    built.business_dbs = db.opened  # type: ignore[attr-defined]
+    return built
 
-    def __init__(self) -> None:
-        self.prices: list[tuple[str, str, int]] = []
-        self.discounts: list[tuple[str, list[str]]] = []
-        self.writable = True
 
-    async def can_write_products(self) -> tuple[bool, str]:
-        return (True, "") if self.writable else (False, "test mode refused")
+@pytest.fixture
+def client(services):
+    from fastapi.testclient import TestClient
 
-    async def create_price(self, app_id, code, name, amount, currency, interval):
-        self.prices.append((app_id, code, amount))
-        return f"prod_{app_id}_{code}", f"price_{app_id}_{code}"
+    from main import attach, create_app
 
-    async def create_full_discount(self, code, app_id, product_ids, max_redemptions):
-        self.discounts.append((code, product_ids))
-        return f"coup_{code}", f"promo_{code}"
+    app = create_app()
+    attach(app, services)
+    return TestClient(app)  # no `with`: the lifespan would build the real services
 
-    async def delete_promotion_code(self, promotion_code_id) -> None: ...
+
+@pytest.fixture
+def bearer(services):
+    """headers(app_id, scopes, sub, uid): gives the app or tool (created if new) a key and scopes, signs
+    a hub token. `{appId}_staging` signs with the app's key."""
+    private: dict[str, str] = {}
+
+    def headers(app_id: str, scopes: list[str], sub: str = "-", uid: str | None = None,
+                lifetime: int = 60) -> dict[str, str]:
+        base = app_id.removesuffix("_staging")
+        if base not in private:
+            private[base], public = keypair()
+            table = "tools" if base in TOOLS else "apps"
+            row = services.db.rows.setdefault((table, base), {"name": base, "status": "active"})
+            row |= {"scopes": [str(s) for s in scopes],
+                    "keys": [{"kid": KID, "publicKey": public, "status": "active"}]}
+        now = int(time.time())
+        claims: dict[str, Any] = {"iss": app_id, "sub": sub, "aud": Audience.HUB.value,
+                                  "jti": str(uuid.uuid4()), "iat": now, "exp": now + lifetime}
+        if uid:
+            claims["uid"] = uid
+        token = jwt.encode(claims, private[base], algorithm="EdDSA", headers={"kid": KID})
+        return {"Authorization": f"Bearer {token}"}
+
+    return headers

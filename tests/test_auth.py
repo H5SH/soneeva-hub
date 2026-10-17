@@ -1,7 +1,7 @@
 import pytest
 
-from app.models.auth import Audience
-from app.services.tokens.verify import AuthError
+from src.models.auth import Audience
+from src.services.tokens.verify import AuthError
 from tests.conftest import keypair
 
 
@@ -73,13 +73,13 @@ async def test_unknown_kid_is_rejected(verifier, sign):
 
 @pytest.mark.asyncio
 async def test_disabled_application_is_rejected(application, sign):
-    from app.services.tokens.keys import KeyStore
-    from app.services.tokens.replay import ReplayGuard
-    from app.services.tokens.verify import TokenVerifier
+    from src.services.tokens.keys import KeyStore
+    from src.services.tokens.replay import ReplayGuard
+    from src.services.tokens.verify import TokenVerifier
     from tests.conftest import APP_ID, FakeDatabase
 
     application["status"] = "disabled"
-    verifier = TokenVerifier(KeyStore(FakeDatabase({APP_ID: application})), ReplayGuard())
+    verifier = TokenVerifier(KeyStore(FakeDatabase({("apps", APP_ID): application})), ReplayGuard())
     with pytest.raises(AuthError, match="disabled"):
         await verifier.verify(sign(), Audience.API)
 
@@ -93,24 +93,17 @@ async def test_replayed_jti_is_rejected(verifier, sign):
 
 
 @pytest.mark.asyncio
-async def test_hosted_token_cannot_call_the_json_api(verifier, sign):
-    """A leaked ?token= from a referer header must not reach the JSON API."""
+async def test_a_hub_token_cannot_call_the_payment_api(verifier, sign):
     with pytest.raises(AuthError):
-        await verifier.verify(sign(aud=Audience.HOSTED.value), Audience.API)
-
-
-@pytest.mark.asyncio
-async def test_api_token_cannot_be_used_as_a_url_token(verifier, sign):
-    with pytest.raises(AuthError):
-        await verifier.verify(sign(aud=Audience.API.value), Audience.HOSTED)
+        await verifier.verify(sign(aud=Audience.HUB.value), Audience.API)
 
 
 @pytest.mark.asyncio
 async def test_rotated_key_still_verifies_while_retiring(application, sign, keys):
     """Rotation must not invalidate tokens already in flight."""
-    from app.services.tokens.keys import KeyStore
-    from app.services.tokens.replay import ReplayGuard
-    from app.services.tokens.verify import TokenVerifier
+    from src.services.tokens.keys import KeyStore
+    from src.services.tokens.replay import ReplayGuard
+    from src.services.tokens.verify import TokenVerifier
     from tests.conftest import APP_ID, FakeDatabase
 
     _, new_public = keypair()
@@ -118,6 +111,6 @@ async def test_rotated_key_still_verifies_while_retiring(application, sign, keys
     application["keys"].append(
         {"kid": "new-key", "alg": "EdDSA", "public_key": new_public, "status": "active"}
     )
-    verifier = TokenVerifier(KeyStore(FakeDatabase({APP_ID: application})), ReplayGuard())
+    verifier = TokenVerifier(KeyStore(FakeDatabase({("apps", APP_ID): application})), ReplayGuard())
     claims = await verifier.verify(sign(), Audience.API)
     assert claims.tenant == "store-123"

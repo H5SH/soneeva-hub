@@ -1,0 +1,145 @@
+{
+  "cloud": {"region": "us-central1"},
+  "deploy": {
+    "image": "{region}-docker.pkg.dev/{project}/voice/soneeva-voice:latest",
+    "localRepo": "../soneeva-voice",
+    "localPortStart": 8100
+  },
+  "handoff": {"consoleUrl": "https://console.soneeva.com", "localConsoleUrl": "http://localhost:3000"},
+  "scopes": {
+    "soneeva": [
+      {"id": "overview.view", "group": "overview"},
+      {"id": "business.edit", "group": "business"},
+      {"id": "calls.view", "group": "calls"},
+      {"id": "costs.view", "group": "calls"},
+      {"id": "callers.view", "group": "callers"},
+      {"id": "callers.edit", "group": "callers"},
+      {"id": "callers.block", "group": "callers"},
+      {"id": "orders.view", "group": "orders"},
+      {"id": "orders.update", "group": "orders"},
+      {"id": "bookings.view", "group": "orders"},
+      {"id": "bookings.update", "group": "orders"},
+      {"id": "complaints.view", "group": "complaints"},
+      {"id": "complaints.update", "group": "complaints"},
+      {"id": "menu.view", "group": "menu"},
+      {"id": "menu.edit", "group": "menu"},
+      {"id": "branches.view", "group": "branches"},
+      {"id": "branches.edit", "group": "branches"},
+      {"id": "team.view", "group": "people"},
+      {"id": "team.edit", "group": "people"},
+      {"id": "roles.view", "group": "people"},
+      {"id": "roles.edit", "group": "people"},
+      {"id": "serviceperson.view", "group": "serviceperson"},
+      {"id": "serviceperson.edit", "group": "serviceperson"},
+      {"id": "checklist.view", "group": "checklist"},
+      {"id": "checklist.edit", "group": "checklist"},
+      {"id": "checklist.approve", "group": "checklist"},
+      {"id": "numbers.view", "group": "numbers"},
+      {"id": "numbers.edit", "group": "numbers"},
+      {"id": "ivr.view", "group": "numbers"},
+      {"id": "ivr.edit", "group": "numbers"},
+      {"id": "audio.edit", "group": "numbers"},
+      {"id": "billing.view", "group": "numbers"},
+      {"id": "agent.view", "group": "agent"},
+      {"id": "voice.edit", "group": "agent"},
+      {"id": "prompt.edit", "group": "agent"},
+      {"id": "profile.edit", "group": "profile"}
+    ]
+  },
+  "plans": {"currency": "usd"},
+  "stripe": {"plansCacheSeconds": 60, "tenantCacheSeconds": 60, "searchLagSeconds": 600, "eventDedupeSeconds": 86400},
+  "callers": {"pageSize": 20, "maxPageSize": 100, "maxName": 80, "maxTags": 10, "maxTagLength": 30, "maxBlockedReason": 200},
+  "businesses": {
+    "idLength": 10,
+    "indexWaitSeconds": 900,
+    "indexPollSeconds": 15,
+    "types": [
+      "restaurant", "cafe", "takeaway", "bakery", "clinic", "dentist", "salon", "spa", "hotel",
+      "pharmacy", "car-service", "vet", "gym", "retail", "other"
+    ],
+    "roles": {
+      "owner": {"name": "Owner", "scopes": ["*"]}
+    },
+    "checklistByType": {
+      "restaurant": "food",
+      "cafe": "food",
+      "takeaway": "food",
+      "bakery": "food",
+      "clinic": "appointments",
+      "dentist": "appointments",
+      "vet": "appointments",
+      "salon": "appointments",
+      "spa": "appointments",
+      "gym": "appointments",
+      "hotel": "hotel"
+    },
+    "checklistStart": ["assigned", "meeting", "subscribed", "mcp"],
+    "checklists": {
+      "food": ["profile", "branches", "hours", "menu", "agent", "number", "test-call"],
+      "appointments": ["profile", "branches", "hours", "services", "booking-rules", "agent", "number", "test-call"],
+      "hotel": ["profile", "rooms", "hours", "faq", "agent", "number", "test-call"],
+      "default": ["profile", "branches", "hours", "faq", "agent", "number", "test-call"]
+    },
+    "checklistLabels": {
+      "assigned": "Serviceperson assigned",
+      "meeting": "Meeting with the serviceperson",
+      "subscribed": "Subscribed to a plan",
+      "mcp": "Business systems connected",
+      "profile": "Complete the business profile",
+      "branches": "Add every branch",
+      "hours": "Confirm opening hours",
+      "menu": "Upload the menu",
+      "agent": "Set the call language and voice",
+      "number": "Connect a phone number",
+      "test-call": "Place a test call",
+      "services": "List services and durations",
+      "booking-rules": "Set booking rules",
+      "rooms": "Describe rooms and rates",
+      "faq": "Answer common questions"
+    }
+  },
+  "media": {
+    "bucket": "{project}.firebasestorage.app",
+    "maxBytes": 1048576,
+    "types": ["image/png", "image/jpeg", "image/webp"]
+  },
+  "accounts": {"resetLimit": 3, "resetWindowSeconds": 3600},
+  "voice": {"language": "auto", "voice": "en-US-Chirp3-HD-Kore"},
+  "numbers": {
+    "type": "Local",
+    "searchLimit": 20,
+    "requireStatuses": ["active", "trialing"]
+  },
+  "usage": {"maxSeconds": 14400},
+  "customers": {"invoicesShown": 24, "usageDaysShown": 31},
+  "people": {
+    "readScopes": ["Users.View", "Users.Create", "Dashboard.View", "Chats.View", "Chat.View",
+                   "Messages.View", "Prices.View", "Costs.View", "Servicepersons.View", "Roles.Write"],
+    "callScopes": ["Chats.View", "Chat.View", "Messages.View", "Dashboard.View", "Prices.View",
+                   "Costs.View", "Servicepersons.View"],
+    "callsPageMax": 1000,
+    "callDays": 30,
+    "grantNever": ["checklist.approve", "roles.edit", "serviceperson.edit"]
+  },
+  "platformScopes": [
+    {"group": "people", "twins": true, "scopes": ["Users.View", "Users.Create", "Users.Write", "Users.Role.Write",
+      "Users.Tokens.Write", "Users.Disable", "Users.Delete", "Users.ResetPassword", "Users.Assign.Write"]},
+    {"group": "calls", "twins": true, "scopes": ["Dashboard.View", "Chats.View", "Chat.View", "Messages.View",
+      "Message.View", "Tokens.Llm.View", "Tokens.Stt.View", "Tokens.Tts.View", "Costs.View", "Prices.View"]},
+    {"group": "servicepersons", "twins": false, "scopes": ["Servicepersons.View", "Servicepersons.Write"]},
+    {"group": "businesses", "twins": false, "scopes": ["Businesses.View", "Businesses.Write", "Businesses.Assign",
+      "Businesses.Access", "Businesses.Delete"]},
+    {"group": "roles", "twins": false, "scopes": ["Roles.View", "Roles.Write"]},
+    {"group": "profile", "twins": false, "scopes": ["Profile.Write"]},
+    {"group": "agent", "twins": false, "scopes": ["Agent.Use"]},
+    {"group": "tools", "twins": false, "scopes": ["Tools.Write"]},
+    {"group": "advertisements", "twins": false, "scopes": ["Advertise.View", "Advertise.Write"]}
+  ],
+  "advertisements": {"backgrounds": ["ink", "teal", "sand", "mint", "coral", "image"], "maxBusinesses": 500},
+  "platformRoles": {
+    "superadmin": ["*", "platform.docs.view", "Profile.Write"],
+    "serviceperson": ["Businesses.Access", "Servicepersons.View", "Profile.Write"],
+    "sales": ["Businesses.View", "Businesses.Assign", "Servicepersons.View", "Profile.Write"]
+  },
+  "agent": {"minMinutes": 15, "maxMinutes": 120, "defaultMinutes": 30}
+}

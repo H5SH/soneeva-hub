@@ -14,8 +14,7 @@ def Deploy(settings: Settings) -> Deployer:  # noqa: N802 - reads like the other
     if os.environ.get("K_SERVICE"):
         image = tunable("deploy.image").format(region=region(), project=project_id())
         return CloudRunDeployer(project_id(), region(), image)
-    return LocalDeployer(tunable("deploy.localRepo"), tunable("deploy.localPortStart"),
-                         settings.voice_public_url)
+    return LocalDeployer(tunable("deploy.localRepo"), tunable("deploy.localPortStart"))
 
 
 __all__ = ["CloudRunDeployer", "Deploy", "DeployError", "Deployer", "FakeDeployer", "LocalDeployer"]

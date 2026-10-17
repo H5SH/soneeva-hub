@@ -35,6 +35,10 @@ class VoiceService:
         self._hub_url = hub_url
         self._project = project
 
+    @property
+    def deployer(self) -> Deployer:
+        return self._deployer
+
     async def env(self, business: Business) -> dict[str, str]:
         """Issues the business's voice key: a redeploy rotates it, and the business doc names it."""
         bdb = self._businesses.business_db(business)

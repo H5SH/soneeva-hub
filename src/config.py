@@ -38,7 +38,6 @@ class Settings(BaseSettings):
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
 
-    voice_public_url: str = Field(default="", description="Local driver only: a tunnel URL.")
 
     auth_secret: str = Field(default="", description="/recover session cookie; the admin's AUTH_SECRET.")
     firebase_api_key: str = Field(default="", description="/recover password check. Empty: /recover is off.")

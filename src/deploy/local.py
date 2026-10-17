@@ -30,11 +30,9 @@ def _free(port: int) -> bool:
 
 
 class LocalDeployer(Deployer):
-    def __init__(self, repo: str, first_port: int, public_url: str = "",
-                 home: Path | None = None) -> None:
+    def __init__(self, repo: str, first_port: int, home: Path | None = None) -> None:
         self._repo = get_path(Path(repo).expanduser()).resolve()
         self._first_port = first_port
-        self._public_url = public_url
         self._home = home or get_path(".deploy-local")
         self._state = self._home / "state.json"
 
@@ -64,13 +62,20 @@ class LocalDeployer(Deployer):
             port += 1
         return port
 
+    def use_tunnel(self, business_id: str, url: str) -> None:
+        """Local phone tests: Twilio reaches this business's voice through `url` (e.g. ngrok) from now on."""
+        data = self._read()
+        data.setdefault(business_id, {})["publicUrl"] = url.rstrip("/")
+        self._write(data)
+
     async def deploy(self, business_id: str, env: dict[str, str]) -> str:
         if not (self._repo / "src" / "main.py").exists():
             raise DeployError(f"deploy.localRepo {self._repo} is not a soneeva-voice checkout")
+        tunnel = self._read().get(business_id, {}).get("publicUrl", "")
         await self.stop(business_id)
         data = self._read()
         port = self._port(data, business_id)
-        url = self._public_url or f"http://localhost:{port}"
+        url = tunnel or f"http://localhost:{port}"
         self._home.mkdir(exist_ok=True)
         log = (self._home / f"{business_id}.log").open("ab")
         process = subprocess.Popen(
@@ -78,6 +83,6 @@ class LocalDeployer(Deployer):
             cwd=self._repo, env=_inherited() | env | {"PORT": str(port), "PUBLIC_BASE_URL": url},
             stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
         )
-        data[business_id] = {"pid": process.pid, "port": port}
+        data[business_id] = {"pid": process.pid, "port": port} | ({"publicUrl": tunnel} if tunnel else {})
         self._write(data)
         return url

@@ -162,8 +162,7 @@ Remove, if granted earlier: project-wide `roles/secretmanager.*` roles (delete t
 
 "secret" rows live in Secret Manager and reach the container as env through Cloud Run
 (`--set-secrets STRIPE_SECRET_KEY=stripe-secret-key:latest,…`); the code reads plain env either way.
-The rest are plain env vars. Remove `SESSION_SECRET`. Do not set `GOOGLE_APPLICATION_CREDENTIALS` or
-`VOICE_PUBLIC_URL` on Cloud Run.
+The rest are plain env vars. Remove `SESSION_SECRET`. Do not set `GOOGLE_APPLICATION_CREDENTIALS` on Cloud Run.
 
 ## Firestore TTL
 

@@ -15,7 +15,7 @@ from src.tunables import tunable
 from tests.setup.platform import business, home_data, serviceperson
 
 FIXTURE = json.loads((Path(__file__).parent / "contract" / "hub.json").read_text())
-CONSOLE_SCOPES = Path(__file__).parents[2] / "dashboard" / "scopes.json"
+CONSOLE_SCOPES = Path(__file__).parents[2] / "console" / "scopes.json"
 
 
 @pytest.fixture

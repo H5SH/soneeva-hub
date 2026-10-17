@@ -97,7 +97,7 @@ uv run python -m cli plan:delete snapback pro
 ```bash
 uv run python -m cli seed:soneeva                # app soneeva, tools karbon-admin and soneeva-voice; scopes, plans
 uv run python -m cli db:prune [--apply]          # unused top-level collections of (default); --apply deletes them for good
-uv run python -m cli scopes:sync soneeva ../dashboard/scopes.json   # scopes/soneeva from the console
+uv run python -m cli scopes:sync soneeva ../console/scopes.json   # scopes/soneeva from the console
 uv run python -m cli person:save <uid> --role serviceperson --phone +316...   # a serviceperson is a person
 uv run python -m cli businesses
 uv run python -m cli business:deploy <id>        # (re)deploy its soneeva-voice

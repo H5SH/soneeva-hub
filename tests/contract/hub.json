@@ -1,5 +1,5 @@
 {
-  "_comment": "karbon-hub /v1 responses (and request bodies) as the console, karbon-admin and soneeva-voice use them. Same file in hub/tests/contract and dashboard/contract.",
+  "_comment": "karbon-hub /v1 responses (and request bodies) as the console, karbon-admin and soneeva-voice use them. Same file in hub/tests/contract and console/contract.",
   "business": {
     "id": "pizzaroma1",
     "name": "Pizza Roma",

@@ -72,8 +72,8 @@ uv run python -m cli businesses        # voiceUrl is set
 
 ## 6. Reach the voice service
 
-Twilio needs a public URL: `ngrok http 8100`, put it in `VOICE_PUBLIC_URL`, restart karbon-hub,
-then `uv run python -m cli business:deploy <id>`.
+Twilio needs a public URL: `ngrok http 8100`, then
+`uv run python -m cli business:deploy <id> --public-url https://<your-tunnel>`; later redeploys keep it.
 
 ## 7. Number and a call
 

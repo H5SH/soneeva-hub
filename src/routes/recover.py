@@ -34,7 +34,7 @@ REFUSED = "Wrong email or password, or no access."
 HEADERS = {
     "Cache-Control": "no-store", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
     "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; "
-    "font-src https://fonts.gstatic.com; script-src 'unsafe-inline'; form-action 'self'; "
+    "font-src https://fonts.gstatic.com; img-src data:; script-src 'unsafe-inline'; form-action 'self'; "
     "frame-ancestors 'none'",
 }
 

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Soneeva</title>
+{% include "_icon.html" %}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&family=Instrument+Serif:ital@0;1&display=swap">
 <style>
   :root {
@@ -13,7 +14,11 @@
     --ink: light-dark(#0b0b0c, #f3f1ea);
     --muted: light-dark(#5c5a52, #a9a69b);
     --line: light-dark(#d9d5c7, #2b2a26);
-    --action: #b5381a;
+    --action: light-dark(#0f766e, #1fa898);
+    --on-action: light-dark(#fbfaf7, #0b0b0c);
+    --mark-mid: light-dark(#22b3a1, #2cc5b1);
+    --mark-deep: light-dark(#0f766e, #1fa898);
+    --mark-bar: light-dark(#22b3a1, #3fd5c2);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -27,19 +32,21 @@
   p { margin: 0; color: var(--muted); max-width: 30em; }
   a.button {
     display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 22px;
-    border-radius: 10px; background: var(--action); color: #fbfaf7; font-weight: 600; text-decoration: none;
+    border-radius: 10px; background: var(--action); color: var(--on-action); font-weight: 600; text-decoration: none;
   }
+  a.button:hover { background: color-mix(in oklab, var(--action) 86%, #000); }
   a.button:focus-visible { outline: 3px solid #dad383; outline-offset: 2px; }
 </style>
 </head>
 <body>
 <main>
-  <svg viewBox="4 5 56 57" width="64" height="64" aria-label="Soneeva">
-    <path fill="#dad383" d="M20.5 43.46A19 19 0 1 1 43.11 19.24A20 20 0 0 0 20.5 43.46Z"/>
-    <path fill="#dad383" stroke="#dad383" stroke-width="2" stroke-linejoin="round" d="M10.5 33.5L5.5 50.5L17.5 40.5Z"/>
-    <path fill="#b5381a" d="M23 39a17 17 0 1 0 34 0a17 17 0 1 0 -34 0Z"/>
-    <path fill="#b5381a" stroke="#b5381a" stroke-width="2" stroke-linejoin="round" d="M48.5 52L58.5 60.5L55 45Z"/>
-    <path stroke="#fbfaf7" fill="none" stroke-width="3" stroke-linecap="round" d="M32 37v4M36 33v12M40 29v20M44 33v12M48 37v4"/>
+  <svg viewBox="16 9 68 82" width="53" height="64" role="img" aria-label="Soneeva">
+    <defs>
+      <linearGradient id="mark-ring" x1=".2" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#dad383"/><stop offset=".55" style="stop-color:var(--mark-mid)"/><stop offset="1" style="stop-color:var(--mark-deep)"/></linearGradient>
+      <linearGradient id="mark-bars" gradientUnits="userSpaceOnUse" x1="0" y1="26" x2="0" y2="60"><stop offset="0" style="stop-color:var(--mark-bar)"/><stop offset="1" style="stop-color:var(--mark-deep)"/></linearGradient>
+    </defs>
+    <path d="M44.6 73.5A31 31 0 1 1 80.6 48Q77 72 52 88Q49 81 44.6 73.5Z" fill="none" stroke="url(#mark-ring)" stroke-width="5.5" stroke-linejoin="round"/>
+    <path d="M37 38v10M43.5 32v22M50 26v34M56.5 34v18M63 39v8" stroke="url(#mark-bars)" stroke-width="4" stroke-linecap="round"/>
   </svg>
   <h1>Call smart. <em>Call Soneeva.</em></h1>
   {% if staff %}

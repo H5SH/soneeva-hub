@@ -12,7 +12,7 @@ from main import attach, create_app
 from src.routes import recover
 
 TOKENS = json.loads((Path(__file__).parent / "data" / "authjs_tokens.json").read_text())
-NAME = "authjs.session-token"
+NAME = "soneeva-admin"
 HEADER, KEY, IV, CIPHER, TAG = TOKENS["boss"].split(".")
 TAMPERED = ".".join([HEADER, KEY, IV, CIPHER[:10] + ("A" if CIPHER[10] != "A" else "B") + CIPHER[11:], TAG])
 

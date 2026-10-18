@@ -15,7 +15,8 @@ from joserfc import jwe
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
 
-NAMES = ("__Secure-authjs.session-token", "authjs.session-token")
+#: karbon-admin's own name (admin auth.ts): `__Secure-` in production, bare locally over http.
+NAMES = ("__Secure-soneeva-admin", "soneeva-admin")
 ALGORITHMS = ["dir", "A256CBC-HS512"]
 
 

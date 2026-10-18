@@ -102,6 +102,11 @@ class BusinessCreate(BaseModel):
     hours: WeekHours = Field(default_factory=WeekHours)
     consentAt: str = ""
     appId: str | None = None
+    dataRegion: str | None = Field(default=None, pattern=r"^[a-z]{2,8}$",
+                                   description="A shared region (GET /v1/data-locations); none: by country.")
+    dataLocation: str | None = Field(default=None, pattern=r"^[a-z0-9-]{2,40}$",
+                                     description="A Firestore location for a database of its own, billed "
+                                     "separately; wins over dataRegion.")
 
     @model_validator(mode="after")
     def _one_owner(self) -> "BusinessCreate":
@@ -151,7 +156,9 @@ class Business(BaseModel):
     name: str
     type: str
     appId: str
-    dbId: str
+    dbId: str = Field(default="", description="Where its data is (src/db/place.py): none, `{region}/{id}` "
+                      "or a database of its own.")
+    dataLocation: str = Field(default="", description="The Firestore location of a database of its own.")
     ownerUid: str
     status: BusinessStatus = BusinessStatus.PENDING
     configured: bool = False

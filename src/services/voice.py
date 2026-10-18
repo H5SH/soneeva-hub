@@ -50,6 +50,7 @@ class VoiceService:
             "BUSINESS_ID": business.id,
             "BUSINESS_NAME": business.name,
             "BUSINESS_TYPE": business.type,
+            # soneeva-voice reads it as src/db/place.py does: empty is nested in `(default)`.
             "FIRESTORE_DATABASE": business.dbId,
             "CALL_LANGUAGE": agent.get("language") or tunable("voice.language"),
             "VOICE": agent.get("voice") or tunable("voice.voice"),

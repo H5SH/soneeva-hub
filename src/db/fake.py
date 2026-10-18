@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from src.db.base import DELETE, ID, Database, Doc, Increment, Query, Transaction, Write
-from src.db.indexes import FieldIndex
+from src.db.indexes import DbIndex
 
 MISSING: Any = object()
 #: Firestore orders values by type first; a range filter matches only values of its own type.
@@ -85,7 +85,9 @@ class FakeDatabase(Database):
         self.rows: dict[tuple[str, str], dict[str, Any]] = dict(rows or {})
         self.opened: dict[str, FakeDatabase] = {}
         self.databases: set[str] = set()
-        self.indexed: dict[str, set[FieldIndex]] = {}
+        #: Where each database made here went (None: the project's own location).
+        self.placed: dict[str, str | None] = {}
+        self.indexed: dict[str, set[DbIndex]] = {}
         self.building: set[str] = set()
 
     def open(self, name: str) -> "FakeDatabase":
@@ -100,13 +102,19 @@ class FakeDatabase(Database):
     async def drop_collection(self, name: str) -> None:
         self.rows = {k: v for k, v in self.rows.items() if k[0].split("/")[0] != name}
 
-    async def create_database(self, name: str) -> None:
-        self.databases.add(name)
+    async def create_database(self, name: str, location: str | None = None) -> None:
+        if name not in self.databases:
+            self.databases.add(name)
+            self.placed[name] = location
 
-    async def request_indexes(self, name: str, indexes: Sequence[FieldIndex]) -> None:
+    async def locations(self) -> list[dict[str, str]]:
+        return [{"id": "europe-west3", "name": "Frankfurt"}, {"id": "nam5", "name": "United States"},
+                {"id": "northamerica-northeast1", "name": "Montréal"}]
+
+    async def request_indexes(self, name: str, indexes: Sequence[DbIndex]) -> None:
         self.indexed.setdefault(name, set()).update(indexes)
 
-    async def indexes_ready(self, name: str, indexes: Sequence[FieldIndex]) -> bool:
+    async def indexes_ready(self, name: str, indexes: Sequence[DbIndex]) -> bool:
         return name not in self.building and set(indexes) <= self.indexed.get(name, set())
 
     async def get(self, path: str, doc_id: str) -> dict[str, Any] | None:

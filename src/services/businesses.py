@@ -1,4 +1,5 @@
-"""Businesses: sign-up (provisioning of `b-{id}` is src/services/provision.py), and the platform's view."""
+"""Businesses: sign-up (where its data goes is src/services/regions.py, provisioning
+src/services/provision.py), and the platform's view."""
 
 import secrets
 import string
@@ -8,7 +9,7 @@ from typing import Any
 
 from src.auth import AccountError, AccountProvider
 from src.auth.password import PasswordSignIn
-from src.db import Database
+from src.db import Database, business_db
 from src.models.admin import SERVICEPERSON
 from src.models.db import BusinessDb, Default
 from src.models.mode import STAGING_ONLY, Mode
@@ -28,6 +29,7 @@ from src.services.errors import PlatformError
 from src.services.modes import ByMode
 from src.services.people.rules import holds
 from src.services.provision import Provisioner
+from src.services.regions import DataRegions
 from src.tunables import tunable
 
 ID_ALPHABET = string.ascii_lowercase + string.digits
@@ -35,8 +37,6 @@ ID_ALPHABET = string.ascii_lowercase + string.digits
 OWNER_FIELDS = {"configured", "status"}
 #: The app a sign-up belongs to when it names none.
 DEFAULT_APP = "soneeva"
-#: A business's database is `{DB_PREFIX}{businessId}`; soneeva-voice assumes the same.
-DB_PREFIX = "b-"
 
 def new_business_id() -> str:
     """Lowercase, starts with a letter: valid inside a Firestore database id."""
@@ -60,6 +60,7 @@ class BusinessService:
         #: Checks a resumed password sign-up's password; without it, an existing email is refused.
         self.identity = identity
         self.provisioner = Provisioner(db, accounts, self.checklist)
+        self.regions = DataRegions(db)
 
     async def with_plan(self, business: Business, record: SubscriptionRecord | None = None) -> Business:
         """`plan` as the API shows it, {code, status, active}, from the Stripe subscription."""
@@ -186,9 +187,11 @@ class BusinessService:
         if owner.businessId:
             raise PlatformError("This account already belongs to a business", 409)
         business_id = new_business_id()
+        db_id, location = await self.regions.choose(
+            business_id, body.country, body.dataRegion, body.dataLocation)
         business = Business(
             id=business_id, name=body.name.strip(), type=body.type,
-            appId=body.appId or DEFAULT_APP, dbId=f"{DB_PREFIX}{business_id}",
+            appId=body.appId or DEFAULT_APP, dbId=db_id, dataLocation=location,
             ownerUid=owner.uid, test=mode is Mode.TEST, country=body.country.upper(),
             timezone=body.timezone, languages=body.languages, branchCount=body.branchCount,
             phone=body.phone, email=body.email or owner.email, consentAt=body.consentAt,
@@ -242,7 +245,7 @@ class BusinessService:
 
     async def database(self, business_id: str) -> Database | None:
         row = await self._db.get_row(Default.BUSINESSES, business_id)
-        return self._db.open(row["dbId"]) if row and row.get("dbId") else None
+        return business_db(self._db, business_id, row.get("dbId")) if row else None
 
     def business_db(self, business: Business) -> Database:
-        return self._db.open(business.dbId)
+        return business_db(self._db, business.id, business.dbId)

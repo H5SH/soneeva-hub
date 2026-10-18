@@ -9,6 +9,7 @@ from src.models.db import Default
 CONSOLE = [Scope.HUB_BUSINESS_CREATE, Scope.HUB_BUSINESS_VIEW, Scope.HUB_BUSINESS_UPDATE,
            Scope.HUB_SERVICEPERSON_VIEW]
 SIGNUP = {"ownerUid": "owner1", "name": "Pizza Roma", "type": "restaurant", "country": "nl",
+          "dataLocation": "europe-west3",
           "timezone": "Europe/Amsterdam", "languages": ["nl", "en"], "branchCount": 2,
           "phone": "+31201234567", "email": "roma@example.com",
           "hours": {"mon": [{"open": "09:00", "close": "17:00"}], "sat": [{"open": "10:00", "close": "14:00"},
@@ -24,7 +25,7 @@ def created(client, bearer):
 
 def test_signup_provisions_the_business_database(created, services):
     db_id = created["dbId"]
-    assert db_id == f"b-{created['id']}" and db_id in services.db.databases
+    assert db_id == f"b-{created['id']}" and services.db.placed[db_id] == "europe-west3"
     assert db_id in services.db.indexed
     bdb = services.business_dbs[db_id]
     assert bdb.rows[("roles", "owner")]["scopes"][0] == "overview.view"  # '*' expanded from catalogue

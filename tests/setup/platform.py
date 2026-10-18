@@ -9,8 +9,9 @@ from src.models.platform import BusinessCreate, Caller
 from tests.setup.people import people
 from tests.test_plans import invoke
 
+#: A database of its own, as every business had before regions: tests read it as `business_dbs["b-{id}"]`.
 SIGNUP = BusinessCreate(ownerUid="owner1", name="Pizza Roma", type="restaurant", country="NL",
-                        timezone="Europe/Amsterdam", languages=["nl"])
+                        timezone="Europe/Amsterdam", languages=["nl"], dataLocation="europe-west3")
 
 
 def business(services, subscribed: bool = False) -> str:

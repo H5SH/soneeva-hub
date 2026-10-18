@@ -36,6 +36,15 @@ async def create_business(
     return business.model_dump(mode="json")
 
 
+@router.get("/data-locations")
+async def data_locations(
+    businesses: BusinessDep, caller: Caller = requires_caller(Scope.HUB_BUSINESS_CREATE),
+) -> dict:
+    """What sign-up offers: `default`, the shared `regions` ({id, label, countries}: a country listed
+    picks it) and every Firestore `locations` ({id, name}) for a database of its own, billed separately."""
+    return await businesses.regions.offered()
+
+
 @router.post("/businesses/{business_id}/provision", status_code=202)
 async def provision_business(
     business_id: str, businesses: BusinessDep, tasks: BackgroundTasks,

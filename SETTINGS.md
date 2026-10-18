@@ -17,6 +17,9 @@ per-machine values live in `.env` (see `.env.example`); contracts are constants 
 | `stripe.tenantCacheSeconds` | How long one tenant's subscription is kept. Subscription, invoice and checkout webhooks drop it at once. |
 | `stripe.searchLagSeconds` | Customers created this recently are listed as well as searched: Stripe search lags creation, and a missed one would be created twice. |
 | `stripe.eventDedupeSeconds` | How long a handled webhook event id is remembered, so a redelivery does not redeploy a voice. |
+| `dataRegions.default` | The region a sign-up gets when its country is in no other region's `countries`; it lives nested in `(default)` (no `dbId`). |
+| `dataRegions.regions` | Shared regions offered at sign-up: `label`, and except the default, `location` (Firestore location of its database `region-{key}`, made on first use) and `countries` (ISO codes that pick it by default). A business there has `dbId` `{key}/{id}`. |
+| `dataRegions.locationsCacheSeconds` | How long the Firestore locations offered for a custom database (`GET /v1/data-locations`) are kept before asking Google again. |
 | `businesses.idLength` | Length of new business ids. |
 | `businesses.indexWaitSeconds` | How long provisioning waits for a new `b-{id}`'s indexes (src/db/indexes.py) before recording `provisionError` "indexes still building"; the retry waits again. |
 | `businesses.indexPollSeconds` | How often it checks them meanwhile. |

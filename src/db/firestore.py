@@ -1,12 +1,15 @@
 """The only module that speaks Firestore. Credentials: GOOGLE_APPLICATION_CREDENTIALS or the GCP runtime."""
 
+import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 from functools import cached_property
 from typing import Any
 
 import firebase_admin
+import google.auth
 from firebase_admin import firestore_async
 from google.api_core.exceptions import AlreadyExists, NotFound
+from google.auth.transport.requests import AuthorizedSession
 from google.cloud import firestore_v1 as fs
 from google.cloud.firestore_admin_v1.services.firestore_admin import FirestoreAdminAsyncClient
 from google.cloud.firestore_admin_v1.types import Database as AdminDatabase
@@ -14,10 +17,11 @@ from google.cloud.firestore_admin_v1.types import Field, Index, UpdateFieldReque
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from src.db.base import DELETE, Database, DatabaseError, Doc, Increment, Query, Transaction, Write
-from src.db.indexes import FieldIndex
+from src.db.indexes import CompositeIndex, DbIndex, FieldIndex
 
 #: An index requested again while it builds is left alone; one that needs repair is requested again.
 LIVE_STATES = {Index.State.READY, Index.State.CREATING}
+API, SCOPE = "https://firestore.googleapis.com/v1", "https://www.googleapis.com/auth/datastore"
 #: A new database is usually ready in seconds; the operation's own polling never gives up.
 CREATE_TIMEOUT_SECONDS = 300
 
@@ -97,11 +101,12 @@ class FirestoreDatabase(Database):
     async def drop_collection(self, name: str) -> None:
         await self._client.recursive_delete(self._client.collection(name))
 
-    async def create_database(self, name: str) -> None:
-        if not self._project or not self._location:
+    async def create_database(self, name: str, location: str | None = None) -> None:
+        location = location or self._location
+        if not self._project or not location:
             raise DatabaseError("No Google Cloud project in the credentials, or no cloud.region")
         native = AdminDatabase.DatabaseType.FIRESTORE_NATIVE
-        database = AdminDatabase(location_id=self._location, type_=native)
+        database = AdminDatabase(location_id=location, type_=native)
         try:
             operation = await self.admin.create_database(
                 parent=f"projects/{self._project}", database=database, database_id=name)
@@ -125,8 +130,34 @@ class FirestoreDatabase(Database):
         return {(i.query_scope.name, i.fields[0].order.name): i.state
                 for i in field.index_config.indexes if len(i.fields) == 1}
 
-    async def request_indexes(self, name: str, indexes: Sequence[FieldIndex]) -> None:
+    async def _composite(self, name: str, index: CompositeIndex) -> Index.State | None:
+        """The state of the composite index as declared, None when there is none."""
+        parent = f"{self._name(name)}/collectionGroups/{index.group}"
+        async for found in await self.admin.list_indexes(parent=parent):
+            fields = [(f.field_path, f.order.name) for f in found.fields if f.field_path != "__name__"]
+            if found.query_scope.name == index.scope and tuple(fields) == index.fields:
+                return found.state
+        return None
+
+    async def _request_composite(self, name: str, index: CompositeIndex) -> None:
+        if await self._composite(name, index) in LIVE_STATES:
+            return
+        fields = [Index.IndexField(field_path=f, order=Index.IndexField.Order[o]) for f, o in index.fields]
+        try:  # not awaiting the operation: wait_for_indexes polls instead
+            scope = Index.QueryScope[index.scope]
+            await self.admin.create_index(parent=f"{self._name(name)}/collectionGroups/{index.group}",
+                                          index=Index(query_scope=scope, fields=fields))
+        except AlreadyExists:
+            return
+        except Exception as error:
+            where = f"{index.group}{list(index.fields)} on {name}"
+            raise DatabaseError(f"Could not index {where}: {error}") from error
+
+    async def request_indexes(self, name: str, indexes: Sequence[DbIndex]) -> None:
         for index in indexes:
+            if isinstance(index, CompositeIndex):
+                await self._request_composite(name, index)
+                continue
             states = await self._states(name, index)
             if all(states.get(pair) in LIVE_STATES for pair in index.wanted()):
                 continue
@@ -141,12 +172,38 @@ class FirestoreDatabase(Database):
                 where = f"{index.group}.{index.field} on {name}"
                 raise DatabaseError(f"Could not index {where}: {error}") from error
 
-    async def indexes_ready(self, name: str, indexes: Sequence[FieldIndex]) -> bool:
+    async def indexes_ready(self, name: str, indexes: Sequence[DbIndex]) -> bool:
         for index in indexes:
+            if isinstance(index, CompositeIndex):
+                if await self._composite(name, index) != Index.State.READY:
+                    return False
+                continue
             states = await self._states(name, index)
             if any(states.get(pair) != Index.State.READY for pair in index.wanted()):
                 return False
         return True
+
+    async def locations(self) -> list[dict[str, str]]:
+        def listed() -> list[dict[str, Any]]:
+            session = AuthorizedSession(google.auth.default(scopes=[SCOPE])[0])  # pyright: ignore
+            found: list[dict[str, Any]] = []
+            token = ""
+            while True:
+                page = session.get(
+                    f"{API}/projects/{self._project}/locations", params={"pageToken": token}, timeout=20)
+                page.raise_for_status()
+                body: dict[str, Any] = page.json()
+                found += body.get("locations", [])
+                token = body.get("nextPageToken", "")
+                if not token:
+                    return found
+
+        try:
+            rows = await asyncio.to_thread(listed)
+        except Exception as error:
+            raise DatabaseError(f"Could not list Firestore locations: {error}") from error
+        found = [{"id": r["locationId"], "name": r.get("displayName") or r["locationId"]} for r in rows]
+        return sorted(found, key=lambda r: r["name"])
 
     # ── documents ────────────────────────────────────────────────────────────
     async def get(self, path: str, doc_id: str) -> dict[str, Any] | None:

@@ -42,7 +42,7 @@ class Default(StrEnum):
 
 
 class BusinessDb(StrEnum):
-    """`b-{businessId}`: one database per business."""
+    """A business's own collections, wherever its `dbId` puts them (src/db/place.py)."""
 
     USERS = "users"
     ROLES = "roles"

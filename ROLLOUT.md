@@ -59,6 +59,12 @@ karbon-hub is now a JSON API only. Nothing is live yet, so this is a first deplo
   and assigning a business read people. `(default)/servicepersons` and `seed:servicepersons` are gone; delete
   that collection, and give each serviceperson the role (`person:save <uid> --role serviceperson --phone …`).
 - Each new `b-{id}` gets the console's `calls.startedAt` indexes at sign-up.
+- Data regions: sign-up picks where a business's data goes (`dataRegion`, `dataLocation`; `GET /v1/data-locations`
+  lists them). The default region (US) nests it in `(default)` under `businesses/{id}` (empty `dbId`); the EU
+  in `region-eu` (made in `eur3` on the first EU sign-up); a custom location gets its own `b-{id}` there.
+  Existing `b-{id}` businesses are unchanged. Deploy soneeva-voice and the console with this hub: both read
+  an empty `dbId` as nested in `(default)`. The first nested sign-up adds the composite
+  `calls (businessId, startedAt)` indexes to `(default)` (and to `region-eu`), which takes a few minutes.
 - Files: `/v1/media/{path}` serves avatars, app icons and logos from the private Firebase Storage
   bucket; `POST /v1/accounts/password-reset-request` emails a reset link (always 202). Both need
   the new app scopes from `seed:soneeva` (`hub.media.view|update`, `hub.account.recover`, and

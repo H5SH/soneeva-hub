@@ -237,7 +237,8 @@ src/
     webhook.py       Stripe events
     recover.py       /recover: break-glass key rotation (templates/recover.html)
   db/                db — base.py: the one Database contract (documents, queries, rows, admin ops);
-                     indexes.py: the indexes every b-{id} needs (the one list, provider-neutral);
+                     indexes.py: the indexes business data needs (the one list, provider-neutral);
+                     place.py: where a business's data is, from its dbId (nested or its own database);
                      firestore.py: the only Firestore code; fake.py; exported as DB
   auth/              auth — Firebase Auth admin: base.py, firebase.py, password.py, fake.py, exported as Accounts
   storage/           storage — the private bucket: base.py, firebase.py, fake.py, exported as Storage
@@ -294,8 +295,12 @@ JSON; the fake database refuses snake_case), except the demo-owned `(default)/ca
 
 - `(default)`: apps, tools, users, roles, scopes, businesses, advertisements, secrets, audit, handoffs,
   agentTokens, assignments; `callers/…` demo-owned. No payment data: see Stripe below.
-- `b-{id}`: users, roles, branches, settings, checklist, grants, numbers, audios, advertisements,
-  callers/{e164}/calls/{id}/messages/{n}, orders, bookings, complaints, menu, audit.
+- A business's collections: users, roles, branches, settings, checklist, grants, numbers, audios,
+  advertisements, callers/{e164}/calls/{id}/messages/{n}, orders, bookings, complaints, menu, audit. Where
+  they are is its `dbId` ([src/db/place.py](src/db/place.py)): none, nested in `(default)` under
+  `businesses/{id}` (the default region, US); `{region}/{id}`, nested the same way in the region's shared
+  database `region-{region}` (EU: `region-eu`); else a database of its own, `b-{id}`, in the custom
+  `dataLocation` chosen at sign-up (billed separately). Older businesses keep their `b-{id}`.
 - Storage: avatars, `advertisements/{id}/icon|background`, `businesses/{id}/audios/{name}/active|v{n}`, voice caches `businesses/{id}/cache/…`, `cache/fillers/…`; `audio/…` demo-owned.
 - Doc ids: callers/numbers E.164, audios slug, agentTokens SHA-256, assignments `{sp}_{uid}` (db.py).
 

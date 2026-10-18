@@ -8,7 +8,7 @@ import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
-from src.db import Database
+from src.db import Database, business_db
 from src.models.db import BusinessDb, Default
 from src.models.platform import Business, Caller
 from src.services.errors import PlatformError
@@ -43,7 +43,7 @@ class ChecklistService:
 
     async def _bdb(self, business_id: str) -> Database | None:
         row = await self._db.get_row(Default.BUSINESSES, business_id)
-        return self._db.open(row["dbId"]) if row and row.get("dbId") else None
+        return business_db(self._db, business_id, row.get("dbId")) if row else None
 
     async def set_state(self, business_id: str, item: str, done: bool, by: str = HUB_ACTOR) -> bool:
         """Done or open again; False when the business or item does not exist or nothing changed."""
@@ -65,7 +65,7 @@ class ChecklistService:
         write = caller.person_scopes is not None and holds(caller.person_scopes, "Businesses.Write")
         if caller.business_id or not (assigned or write):
             raise PlatformError("Only the assigned serviceperson or Businesses.Write", 403)
-        bdb = self._db.open(business.dbId)
+        bdb = business_db(self._db, business.id, business.dbId)
         if not await bdb.get_row(BusinessDb.CHECKLIST, MEETING):
             raise PlatformError("This business has no meeting item", 409)
         await self.set_state(business.id, MEETING, done, caller.uid or caller.app_id)
@@ -73,7 +73,7 @@ class ChecklistService:
 
     async def items(self, business: Business) -> list[dict[str, Any]]:
         """In order, as `{id, label, state, by, at}` (`at` ISO or null)."""
-        rows = await self._db.open(business.dbId).get_rows(BusinessDb.CHECKLIST)
+        rows = await business_db(self._db, business.id, business.dbId).get_rows(BusinessDb.CHECKLIST)
         rows.sort(key=lambda r: (r.get("order", float("inf")), r["id"]))
         at = lambda v: v.isoformat() if isinstance(v, datetime) else v  # noqa: E731
         return [{"id": r["id"], "label": r.get("label", r["id"]), "state": r.get("state", "open"),

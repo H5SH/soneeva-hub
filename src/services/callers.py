@@ -10,9 +10,10 @@ Every query here is served by Firestore's automatic single-field indexes.
 import asyncio
 from typing import Any
 
-from src.db import DELETE, ID, Database, Query, path
+from src.db import DELETE, ID, Database, Query, business_db, path
 from src.models.callers import CallerQuery
 from src.models.db import BusinessDb, Sub
+from src.models.platform import Business
 from src.services.platform.records import iso
 
 ANONYMOUS_PREFIX = "anon-"
@@ -54,7 +55,7 @@ def _query(query: CallerQuery) -> Query:
 
 
 class CallerService:
-    """`db_id` names the business database (`b-{id}`)."""
+    """Each call names the business; its data is wherever its `dbId` says (src/db/place.py)."""
 
     def __init__(self, db: Database) -> None:
         self._db = db
@@ -62,14 +63,14 @@ class CallerService:
     async def _calls(self, bdb: Database, phone: str) -> int:
         return await bdb.count(Query(path(BusinessDb.CALLERS, phone, Sub.CALLS)))
 
-    async def search(self, db_id: str, query: CallerQuery) -> tuple[list[dict[str, Any]], str | None]:
+    async def search(self, business: Business, query: CallerQuery) -> tuple[list[dict[str, Any]], str | None]:
         """A page of callers and the cursor after it (None at the end).
 
         `tag`: that tag, by number. `blocked`: blocked ones, by number. A numeric `q`: phone
         prefix. Other `q`: name prefix. None of these: most recent call first. `before` is the
         previous page's cursor.
         """
-        bdb = self._db.open(db_id)
+        bdb = business_db(self._db, business.id, business.dbId)
         found = _query(query).take(query.limit + 1)
         docs = await bdb.query(found.start_after(query.before) if query.before else found)
         page = docs[:query.limit]
@@ -78,16 +79,16 @@ class CallerService:
         rows = [to_caller(d.id, d.data, n) for d, n in zip(listed, counts, strict=True)]
         return rows, (page[-1].id if len(docs) > query.limit else None)
 
-    async def get(self, db_id: str, phone: str) -> dict[str, Any] | None:
-        bdb = self._db.open(db_id)
+    async def get(self, business: Business, phone: str) -> dict[str, Any] | None:
+        bdb = business_db(self._db, business.id, business.dbId)
         doc = await bdb.get(BusinessDb.CALLERS, phone)
         return None if doc is None else to_caller(phone, doc, await self._calls(bdb, phone))
 
-    async def update(self, db_id: str, phone: str, fields: dict[str, Any],
+    async def update(self, business: Business, phone: str, fields: dict[str, Any],
                      create: bool = False) -> dict[str, Any] | None:
         """Merge `fields` (None deletes that field) into a caller; None when there is no such
         caller, unless `create` makes it (`phone` plus `fields`: a number that never called)."""
-        bdb = self._db.open(db_id)
+        bdb = business_db(self._db, business.id, business.dbId)
         exists = await bdb.get(BusinessDb.CALLERS, phone) is not None
         if not exists and not create:
             return None
@@ -97,4 +98,4 @@ class CallerService:
         else:  # merged all the same, in case a call created it meanwhile
             await bdb.set(BusinessDb.CALLERS, phone,
                           {"phone": phone} | {k: v for k, v in fields.items() if v is not None})
-        return await self.get(db_id, phone)
+        return await self.get(business, phone)

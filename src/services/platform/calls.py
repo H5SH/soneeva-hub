@@ -2,7 +2,9 @@
 
 The demo writes them in snake_case (the one documented exception to camelCase); this reader is the
 only code that touches them, and maps them to the console's camelCase records (records.py).
-`callers` None is everyone; otherwise only calls whose `caller_id` is listed.
+`callers` None is everyone; otherwise only calls whose `caller_id` is listed. Businesses nested in
+`(default)` have `calls` too (camelCase `startedAt`): every group query here filters or orders on
+`started_at`, which only the demo's carry, so theirs never show.
 """
 
 import asyncio
@@ -15,6 +17,8 @@ from src.db import Database, Query, path
 from src.models.db import Default, Sub
 from src.services.platform.records import COST_PARTS, to_call, to_message
 
+#: Before any demo call: "has `started_at`", the filter that leaves nested businesses' calls out.
+EPOCH = datetime(2000, 1, 1, tzinfo=UTC)
 #: Firestore's `in` filter takes at most this many values.
 IN_LIMIT = 30
 TOTALS = ("calls", "messages", "cost")
@@ -83,7 +87,7 @@ class CallService:
 
     async def totals(self, callers: list[str] | None) -> dict[str, float]:
         """{calls, messages, cost}, summed by the database."""
-        group = Query(Sub.CALLS, group=True)
+        group = Query(Sub.CALLS, group=True).where("started_at", ">", EPOCH).order_by("started_at", True)
         if callers is None:
             return await self._sum(group)
         parts = await asyncio.gather(*[

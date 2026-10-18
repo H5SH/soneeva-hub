@@ -16,6 +16,7 @@ PUBLIC = {
     ("GET", "/v1/agent/openapi.json"): "the agent API's schema, so an HTTP-only agent reads real shapes",
     ("GET", "/recover"): "the break-glass sign-in form; every action needs its session",
     ("GET", "/"): "a Soneeva landing page; it only reveals a link for a signed-in /recover session",
+    ("GET", "/favicon.ico"): "the Soneeva icon, as on every page",
 }
 
 

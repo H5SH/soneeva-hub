@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
 
-from src.db.indexes import FieldIndex
+from src.db.indexes import DbIndex
 from src.models.db import CREATED_AT, DELETED_AT, DELETED_FLAG, UPDATED_AT
 
 #: Order by (or filter on) the document id; Firestore's own name for it.
@@ -110,19 +110,23 @@ class Database(ABC):
     async def database_exists(self, name: str) -> bool: ...
 
     @abstractmethod
-    async def create_database(self, name: str) -> None:
-        """Nothing when it exists already."""
+    async def create_database(self, name: str, location: str | None = None) -> None:
+        """Nothing when it exists already. `location` (a Firestore location id) or the project's own."""
 
     @abstractmethod
-    async def request_indexes(self, name: str, indexes: Sequence[FieldIndex]) -> None:
+    async def locations(self) -> list[dict[str, str]]:
+        """Where a database can be made, as `{id, name}` (`europe-west3`, "Frankfurt"), by name."""
+
+    @abstractmethod
+    async def request_indexes(self, name: str, indexes: Sequence[DbIndex]) -> None:
         """Asks for `indexes` on database `name`, skipping those already there or building.
         Returns once requested; they build afterwards (minutes on a new database)."""
 
     @abstractmethod
-    async def indexes_ready(self, name: str, indexes: Sequence[FieldIndex]) -> bool:
+    async def indexes_ready(self, name: str, indexes: Sequence[DbIndex]) -> bool:
         """Whether every one of `indexes` on database `name` is built and serving queries."""
 
-    async def wait_for_indexes(self, name: str, indexes: Sequence[FieldIndex], timeout: float,
+    async def wait_for_indexes(self, name: str, indexes: Sequence[DbIndex], timeout: float,
                                interval: float = 10) -> None:
         """Polls until every one of `indexes` is ready; IndexesBuilding after `timeout` seconds."""
         deadline = monotonic() + timeout

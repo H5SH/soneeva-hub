@@ -78,7 +78,7 @@ async def list_callers(
         raise PlatformError("Search by one of q, tag or blocked", 422)
     size = min(limit or tunable("callers.pageSize"), tunable("callers.maxPageSize"))
     query = CallerQuery(q=q.strip(), tag=clean_tag(tag), blocked=blocked, limit=size, before=before)
-    rows, cursor = await callers.search(business.dbId, query)
+    rows, cursor = await callers.search(business, query)
     return {"callers": rows, "next": cursor}
 
 
@@ -90,11 +90,11 @@ async def block_number(
     """Blocks a number, creating its caller when it never called (only for people not limited to branches)."""
     business = await allowed(businesses, caller, business_id, BLOCK)
     limit = await branch_limit(businesses, business, caller)
-    known = await callers.get(business.dbId, body.phone)
+    known = await callers.get(business, body.phone)
     if limit and (not known or known["branchId"] not in limit):
         raise PlatformError("Only callers of your branches", 403)
     by = caller.uid or caller.app_id
-    saved = await callers.update(business.dbId, body.phone,
+    saved = await callers.update(business, body.phone,
                                  block_fields(True, body.blockedReason, by, datetime.now(UTC)), create=True)
     data = {"phone": body.phone, "reason": body.blockedReason}
     await audit(businesses, business, caller, "caller.block", data)
@@ -113,11 +113,11 @@ async def update_caller(
     fields = body.fields() | ({"updatedBy": by, "updatedAt": now} if body.edits else {})
     if body.blocked is not None:
         limit = await branch_limit(businesses, business, caller)
-        known = await callers.get(business.dbId, phone)
+        known = await callers.get(business, phone)
         if known and limit and known["branchId"] not in limit:
             raise PlatformError("Only callers of your branches", 403)
         fields |= block_fields(body.blocked, body.blockedReason, by, now)
-    saved = await callers.update(business.dbId, phone, fields)
+    saved = await callers.update(business, phone, fields)
     if saved is None:
         raise PlatformError("No such caller", 404)
     if body.blocked is not None:

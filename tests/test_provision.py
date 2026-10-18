@@ -65,7 +65,7 @@ def test_provisioned_only_after_the_indexes_are_ready(signup, client, bearer, se
     monkeypatch.setitem(tunables()["businesses"], "indexWaitSeconds", 0)
     services.db.building = building = set()
 
-    async def create_database(name):  # a new database's indexes take a while
+    async def create_database(name, location=None):  # a new database's indexes take a while
         if name not in services.db.databases:
             building.add(name)
             services.db.databases.add(name)

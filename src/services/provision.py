@@ -1,6 +1,8 @@
-"""Provisioning a signed-up business: its `b-{id}` database, indexes, seed rows and the owner's claims.
-It is `provisioned` only once the indexes (src/db/indexes.py) are built, so the console never queries
-without them; when they take longer than `businesses.indexWaitSeconds` the retry waits again.
+"""Provisioning a signed-up business: where its data goes (src/db/place.py) made ready, its indexes,
+seed rows and the owner's claims. A database of its own, or a region's shared one, is made on first
+use; nested data needs the shared database's NESTED_INDEXES. It is `provisioned` only once the indexes
+(src/db/indexes.py) are built, so the console never queries without them; when they take longer than
+`businesses.indexWaitSeconds` the retry waits again.
 
 Sign-up answers as soon as the account and the pending business row exist; this runs afterwards (a
 background task, `POST /v1/businesses/{id}/provision` or `business:provision`). Every step is
@@ -12,15 +14,24 @@ import logging
 from typing import Any
 
 from src.auth import AccountProvider
-from src.db import BUSINESS_INDEXES, Database
+from src.db import BUSINESS_INDEXES, NESTED_INDEXES, Database, business_db, place
+from src.db.indexes import DbIndex
 from src.models.db import AGENT_SETTINGS, CONSOLE_SETTINGS, BusinessDb, Default
 from src.models.platform import Business
 from src.services.checklist import ChecklistService
 from src.services.errors import PlatformError
+from src.services.regions import region_location
 from src.tunables import tunable
 
 logger = logging.getLogger(__name__)
 ERROR_LENGTH = 200
+DEFAULT_DATABASE = "(default)"
+
+
+def _indexed(business: Business) -> tuple[str, tuple[DbIndex, ...]]:
+    """The database holding the business's data, and the indexes it needs there."""
+    where = place(business.id, business.dbId)
+    return where.database or DEFAULT_DATABASE, NESTED_INDEXES if where.root else BUSINESS_INDEXES
 
 
 class Provisioner:
@@ -40,7 +51,7 @@ class Provisioner:
         self._running.add(business_id)
         try:
             if business.provisioned:
-                await self._indexes(business.dbId)
+                await self._indexes(business)
             else:
                 await self._build(business, row.get("signup") or {})
         except Exception as error:
@@ -61,12 +72,12 @@ class Provisioner:
             logger.exception("provisioning failed for %s", business_id)
 
     async def _build(self, business: Business, signup: dict[str, Any]) -> None:
-        await self._db.create_database(business.dbId)
-        await self._db.request_indexes(business.dbId, BUSINESS_INDEXES)
+        await self._database(business)
+        await self._db.request_indexes(*_indexed(business))
         owner = await self._accounts.get(business.ownerUid)
         if not owner:
             raise PlatformError("The owner's account no longer exists", 409)
-        bdb = self._db.open(business.dbId)
+        bdb = business_db(self._db, business.id, business.dbId)
         catalogue = await self._catalogue(business.appId)
         roles = [bdb.set_row(BusinessDb.ROLES, role, {
             "name": row["name"], "scopes": catalogue if "*" in row["scopes"] else row["scopes"],
@@ -89,13 +100,22 @@ class Provisioner:
         )
         username = signup.get("username") or owner.username or owner.email.split("@")[0] or owner.uid
         await self._accounts.set_claims(business.ownerUid, {"businessId": business.id, "username": username})
-        await self._indexes(business.dbId)
+        await self._indexes(business)
 
-    async def _indexes(self, db_id: str) -> None:
+    async def _database(self, business: Business) -> None:
+        """Its own database, or its region's shared one; nothing when nested in `(default)`."""
+        where = place(business.id, business.dbId)
+        if where.database and where.root:
+            await self._db.create_database(where.database, region_location(business.dbId.partition("/")[0]))
+        elif where.database:
+            await self._db.create_database(where.database, business.dataLocation or None)
+
+    async def _indexes(self, business: Business) -> None:
         """Requests any index missing (again) and waits until every one is built."""
-        await self._db.request_indexes(db_id, BUSINESS_INDEXES)
+        name, indexes = _indexed(business)
+        await self._db.request_indexes(name, indexes)
         wait, poll = tunable("businesses.indexWaitSeconds"), tunable("businesses.indexPollSeconds")
-        await self._db.wait_for_indexes(db_id, BUSINESS_INDEXES, wait, poll)
+        await self._db.wait_for_indexes(name, indexes, wait, poll)
 
     async def _catalogue(self, app_id: str) -> list[str]:
         row = await self._db.get_row(Default.SCOPES, app_id)

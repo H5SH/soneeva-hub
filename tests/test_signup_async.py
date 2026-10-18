@@ -10,6 +10,7 @@ from tests.test_plans import invoke
 
 OWNER = {"email": "rosa@example.com", "password": "secret1", "displayName": "Rosa", "username": "rosa"}
 SIGNUP = {"owner": OWNER, "name": "Pizza Roma", "type": "restaurant", "country": "NL",
+          "dataLocation": "europe-west3",
           "timezone": "Europe/Amsterdam", "address": "Dam 1",
           "hours": {"mon": [{"open": "09:00", "close": "17:00"}]}}
 
@@ -42,7 +43,7 @@ def status(client, bearer, business_id):
 
 
 def fail_database(services):
-    async def broken(name):
+    async def broken(name, location=None):
         raise RuntimeError("database not ready")
 
     services.db.create_database = broken

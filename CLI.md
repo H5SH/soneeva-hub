@@ -100,7 +100,6 @@ uv run python -m cli db:prune [--apply]          # unused top-level collections 
 uv run python -m cli scopes:sync soneeva ../console/scopes.json   # scopes/soneeva from the console
 uv run python -m cli person:save <uid> --role serviceperson --phone +316...   # a serviceperson is a person
 uv run python -m cli businesses
-uv run python -m cli business:secret <id>        # its voice env into Secret Manager (voice-{id}), if missing
 uv run python -m cli business:provision <id>     # finish or retry provisioning; adds new checklist items, keeps progress (idempotent; waits for its indexes)
 uv run python -m cli business:delete <id>        # soft-delete the row; database and owner account stay
 uv run python -m cli app:update soneeva --scopes hub.business.view,hub.business.create

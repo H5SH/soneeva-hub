@@ -31,9 +31,3 @@ def test_demo_settings_need_their_scopes_and_are_validated(client, bearer, servi
     assert client.get(URL, headers=sales()).status_code == 403
     assert services.db.rows[("demo", "settings")]["ivr"]["agentMenu"]["default"] == "spark"
 
-
-def test_the_cli_imports_a_settings_file(services, tmp_path):
-    path = tmp_path / "demo.json"
-    path.write_text(json.dumps(SETTINGS))
-    invoke(services, "demo:settings:import", str(path))
-    assert services.db.rows[("demo", "settings")]["models"]["live"] == SETTINGS["models"]["live"]

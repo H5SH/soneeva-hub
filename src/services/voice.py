@@ -89,7 +89,7 @@ class VoiceService:
         await self._vault.write(secret_name(business_id), to_dotenv(await self.issue_env(business)))
 
     async def provide_quietly(self, business_id: str) -> None:
-        """For background tasks: a failure is logged, never raised; `business:secret` writes it again."""
+        """For background tasks: a failure is logged, never raised."""
         try:
             await self.provide(business_id)
         except Exception:  # noqa: BLE001 - the webhook has answered already

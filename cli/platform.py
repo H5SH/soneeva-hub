@@ -1,16 +1,13 @@
 """Platform commands: the hub key, seeds and businesses."""
 
-import json
 from pathlib import Path
 
 from cli.context import Context
 from cli.output import Printer
 from src.db import Write
 from src.models.admin import Scope
-from src.models.db import DEMO_SETTINGS, Default
-from src.models.demo import DemoSettings
+from src.models.db import Default
 from src.services.catalogue import read_console_scopes, save_catalogue, seed_platform_roles
-from src.services.errors import AdminError
 from src.services.voice import VOICE_APP, VOICE_TOOL
 from src.tunables import tunable
 
@@ -106,24 +103,6 @@ async def list_businesses(ctx: Context, out: Printer, args) -> None:
         [b.model_dump(mode="json") | {"numbers": len(b.numbers)} for b in await ctx.businesses.every()],
         ["id", "name", "type", "status", "provisioned", "voiceUrl", "numbers"],
     )
-
-
-async def import_demo_settings(ctx: Context, out: Printer, args) -> None:
-    """`demo/settings` from a JSON file (the DemoSettings shape); the demo follows it live."""
-    try:
-        settings = DemoSettings(**json.loads(Path(args.path).read_text()))
-    except (OSError, ValueError) as error:
-        raise AdminError(f"Not demo settings: {error}") from error
-    await ctx.db.set_row(Default.DEMO, DEMO_SETTINGS, settings.model_dump())
-    out.done("demo/settings written: the demo picks it up at once.")
-
-
-async def voice_secret(ctx: Context, out: Printer, args) -> None:
-    """Secret Manager's `voice-{id}`, as a subscription writes it; one already there is left alone."""
-    if not await ctx.businesses.get(args.business_id):
-        raise AdminError(f"No business '{args.business_id}'.")
-    await ctx.voice.provide(args.business_id)
-    out.done(f"voice-{args.business_id} is in Secret Manager: mount it in the voice's deployment.")
 
 
 async def provision_business(ctx: Context, out: Printer, args) -> None:

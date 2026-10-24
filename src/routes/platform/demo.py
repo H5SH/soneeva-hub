@@ -26,7 +26,7 @@ async def get_settings(request: Request, actor: Actor = requires_actor(Scope.HUB
     _need(actor, VIEW, EDIT)
     row = await request.app.state.db.get_row(Default.DEMO, DEMO_SETTINGS)
     if not row:
-        raise PlatformError("No demo settings yet: `demo:settings:import <file>`", 404)
+        raise PlatformError("No demo settings in the database", 404)
     return DemoSettings(**{k: v for k, v in row.items() if k in DemoSettings.model_fields}).model_dump()
 
 

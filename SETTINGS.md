@@ -33,7 +33,7 @@ per-machine values live in `.env` (see `.env.example`); contracts are constants 
 | `advertisements.backgrounds` | An advertisement's `background`: a theme colour token, or `image` (its background image). |
 | `advertisements.maxBusinesses` | Most businesses one `POST /v1/advertisements/{id}/publish` names. |
 | `accounts.resetLimit`, `accounts.resetWindowSeconds` | Reset emails `POST /v1/accounts/password-reset-request` sends per address per window (per instance); more are dropped silently. |
-| `voice.language`, `voice.voice` | Defaults written to `settings/agent` at sign-up. |
+| `voice.language`, `voice.voice`, `voice.engine` | Defaults written to `settings/agent` at sign-up; `engine` is `spark` (Gemini Live, speech-to-speech) or `smart` (speech-to-text, LLM, text-to-speech), switched in the console. |
 | `numbers.type` | Twilio number kind searched: `Local`, `Mobile` or `TollFree`. |
 | `numbers.searchLimit` | Most numbers a search returns. |
 | `agent.minMinutes`, `agent.maxMinutes`, `agent.defaultMinutes` | Lifetime bounds of an operator token for `/v1/agent` (`POST /v1/agent-tokens`). |

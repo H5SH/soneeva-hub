@@ -60,7 +60,7 @@ karbon-hub is now a JSON API only. Nothing is live yet, so this is a first deplo
   that collection, and give each serviceperson the role (`person:save <uid> --role serviceperson --phone …`).
 - Each new `b-{id}` gets the console's `calls.startedAt` indexes at sign-up.
 - Voice by hand: existing businesses get the new `deployment` checklist item with `business:provision <id>`
-  (adds missing items, keeps progress), and their voice env with `business:secret <id>`.
+  (adds missing items, keeps progress).
 - Data regions: sign-up picks where a business's data goes (`dataRegion`, `dataLocation`; `GET /v1/data-locations`
   lists them). The default region (US) nests it in `(default)` under `businesses/{id}` (empty `dbId`); the EU
   in `region-eu` (made in `eur3` on the first EU sign-up); a custom location gets its own `b-{id}` there.

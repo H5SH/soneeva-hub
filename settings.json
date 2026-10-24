@@ -45,6 +45,7 @@
       {"id": "billing.view", "group": "numbers"},
       {"id": "agent.view", "group": "agent"},
       {"id": "voice.edit", "group": "agent"},
+      {"id": "agent.engine.edit", "group": "agent"},
       {"id": "prompt.edit", "group": "agent"},
       {"id": "profile.edit", "group": "profile"}
     ]
@@ -108,7 +109,7 @@
     "types": ["image/png", "image/jpeg", "image/webp"]
   },
   "accounts": {"resetLimit": 3, "resetWindowSeconds": 3600},
-  "voice": {"language": "auto", "voice": "en-US-Chirp3-HD-Kore"},
+  "voice": {"language": "auto", "voice": "en-US-Chirp3-HD-Kore", "engine": "spark"},
   "numbers": {
     "type": "Local",
     "searchLimit": 20,

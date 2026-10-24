@@ -96,7 +96,8 @@ class Provisioner:
                 "profile": {"name": owner.displayName, "email": owner.email, "phone": ""},
             }),
             bdb.create_row(BusinessDb.SETTINGS, AGENT_SETTINGS,
-                           {"language": tunable("voice.language"), "voice": tunable("voice.voice")}),
+                           {"language": tunable("voice.language"), "voice": tunable("voice.voice"),
+                            "engine": tunable("voice.engine")}),
             bdb.create_row(BusinessDb.SETTINGS, CONSOLE_SETTINGS,
                            {"language": (business.languages or ["en"])[0]}),
         )

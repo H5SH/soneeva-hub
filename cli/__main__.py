@@ -74,6 +74,8 @@ COMMANDS = [
      ["business_id"], []),
     ("business:delete", "Soft-delete a business row (not its database or owner account)",
      platform.delete_business, ["business_id"], []),
+    ("demo:settings:import", "Write the demo's settings (demo/settings) from a JSON file",
+     platform.import_demo_settings, ["path"], []),
     ("business:secret", "Write a business's voice env to Secret Manager (voice-{id}), if missing",
      platform.voice_secret, ["business_id"], []),
 ]

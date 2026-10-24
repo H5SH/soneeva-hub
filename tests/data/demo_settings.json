@@ -1,0 +1,122 @@
+{
+  "models": {
+    "llm": "gemini-2.5-flash",
+    "sttLanguage": "auto",
+    "ttsVoice": "en-US-Chirp3-HD-Kore",
+    "live": "gemini-live-2.5-flash-native-audio",
+    "liveVoice": "Kore"
+  },
+  "agents": [
+    {
+      "id": "spark",
+      "label": "Soneeva Spark",
+      "description": "Speaks and listens natively: the fastest replies"
+    },
+    {
+      "id": "smart",
+      "label": "Soneeva Smart",
+      "description": "Our full pipeline, with premium voices"
+    }
+  ],
+  "branches": [
+    {
+      "id": "pakistan",
+      "name": "Pakistan",
+      "callerPrefixes": [
+        "+92"
+      ]
+    },
+    {
+      "id": "canada",
+      "name": "Canada",
+      "callerPrefixes": [
+        "+1"
+      ]
+    }
+  ],
+  "ivr": {
+    "agentMenu": {
+      "prompt": "Welcome to the Soneeva demo. For Soneeva Spark, press 1. For Soneeva Smart, press 2.",
+      "options": [
+        {
+          "digit": "1",
+          "agent": "spark"
+        },
+        {
+          "digit": "2",
+          "agent": "smart"
+        }
+      ],
+      "default": "spark"
+    },
+    "greeting": "Hello, and thank you for calling Soniva Voice Agents Demo. To place an order, press 1. To file a complaint, press 2. To make a reservation, press 3. To book an appointment, press 4. To talk to our support team, press 0.",
+    "invalid": "Sorry, I didn't get that.",
+    "goodbye": "Thanks for calling. Goodbye.",
+    "voice": "Google.en-US-Chirp3-HD-Kore",
+    "timeout": 7,
+    "maxAttempts": 3,
+    "options": [
+      {
+        "digit": "1",
+        "label": "Order",
+        "mode": "order"
+      },
+      {
+        "digit": "2",
+        "label": "Complaint",
+        "mode": "complaint"
+      },
+      {
+        "digit": "3",
+        "label": "Reservation",
+        "mode": "booking"
+      },
+      {
+        "digit": "4",
+        "label": "Appointment",
+        "mode": "appointment"
+      },
+      {
+        "digit": "0",
+        "label": "Support team",
+        "action": "support",
+        "say": "Sorry, our support team can't be reached from this demo yet. Please call back and choose another option."
+      }
+    ]
+  },
+  "agentOptions": [
+    {
+      "mode": "order",
+      "label": "Take an order",
+      "description": "Order food for delivery"
+    },
+    {
+      "mode": "booking",
+      "label": "Make a booking",
+      "description": "Reserve a slot"
+    },
+    {
+      "mode": "appointment",
+      "label": "Book an appointment",
+      "description": "Schedule with the calendar"
+    },
+    {
+      "mode": "complaint",
+      "label": "File a complaint",
+      "description": "Log an issue and get a reference"
+    }
+  ],
+  "display": {
+    "transcript": false,
+    "userTranscript": true,
+    "agentTranscript": true,
+    "agentActions": true,
+    "typing": false
+  },
+  "home": {
+    "loginUrl": "/demo",
+    "siteUrl": "https://soneeva.com",
+    "plansUrl": "https://soneeva.com/en/pricing/",
+    "accessUrl": "https://soneeva.com/en/contact/?topic=demo-access"
+  }
+}

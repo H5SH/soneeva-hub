@@ -39,13 +39,15 @@ class PlatformData:
         return allowed if asked is None else [c for c in asked if c in allowed]
 
     async def calls(self, actor: Actor, scope: str, caller: str | None, span: CallRange,
-                    limit: int) -> dict[str, Any]:
+                    limit: int, engine: str | None = None) -> dict[str, Any]:
+        """`engine` keeps one agent's calls of each page (a page may come back shorter)."""
         callers = await self._callers(actor, scope, [caller] if caller else None)
         if callers == []:
             return {"calls": [], "next": None}
         found = await self._calls.query(callers, span, limit + 1)
         page = found[:limit]
-        return {"calls": page, "next": page[-1]["startedAt"] if len(found) > limit and page else None}
+        nxt = page[-1]["startedAt"] if len(found) > limit and page else None
+        return {"calls": [c for c in page if not engine or c["engine"] == engine], "next": nxt}
 
     async def call(self, actor: Actor, scope: str, caller: str, call_id: str) -> dict[str, Any]:
         if await self._callers(actor, scope, [caller]) == []:
@@ -68,11 +70,12 @@ class PlatformData:
         return await self._calls.totals(allowed)
 
     async def daily(self, actor: Actor, scope: str, caller: str | None,
-                    span: CallRange) -> list[dict[str, Any]]:
-        """Per UTC day over `span` (default: the last 30 days): calls, minutes and cost by part."""
+                    span: CallRange, engine: str | None = None) -> list[dict[str, Any]]:
+        """Per UTC day over `span` (default: the last 30 days): calls, minutes and cost by part, of one
+        agent's calls when `engine` names it."""
         until = span.until or datetime.now(UTC)
         since = span.since or until - timedelta(days=tunable("people.callDays") - 1)
         callers = await self._callers(actor, scope, [caller] if caller else None)
         span = CallRange(since=since, until=until)
         found = [] if callers == [] else await self._calls.query(callers, span, RANGE_CAP)
-        return by_day(found, since, until)
+        return by_day([c for c in found if not engine or c["engine"] == engine], since, until)

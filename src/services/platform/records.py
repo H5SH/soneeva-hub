@@ -44,7 +44,11 @@ def usage(value: Any) -> dict[str, float] | None:
 
 
 #: camelCase part -> the demo's field. `carrier` is the call's telephony (minutes and confirmations).
-COST_PARTS = {"llm": "llm", "stt": "stt", "tts": "tts", "telephony": "carrier", "total": "total"}
+#: Smart calls spend on llm/stt/tts, Spark calls on `live` (one speech-to-speech model); both on the carrier.
+COST_PARTS = {"llm": "llm", "stt": "stt", "tts": "tts", "live": "live", "telephony": "carrier",
+              "total": "total"}
+#: Which agent took a call; calls from before Spark existed are Smart.
+ENGINES = ("spark", "smart")
 
 
 def cost(value: Any) -> dict[str, float | None] | None:
@@ -60,6 +64,7 @@ def to_call(call_id: str, caller: str, d: dict[str, Any]) -> dict[str, Any]:
         "id": call_id,
         "uid": _str(d.get("caller_id")) or caller,
         "agent": _str(d.get("mode"), "—"),
+        "engine": _str(d.get("engine"), "smart"),
         "status": _str(d.get("status"), "in_progress"),
         "startedAt": iso(d.get("started_at")),
         "endedAt": iso(d.get("ended_at")),
@@ -71,7 +76,7 @@ def to_call(call_id: str, caller: str, d: dict[str, Any]) -> dict[str, Any]:
         "interruptions": _num(d.get("interruptions")),
         "holdingPhrases": _num(d.get("holding_phrases")),
         "endReason": _str(d.get("end_reason")) or None,
-        "models": {k: _str(models.get(k)) for k in ("llm", "stt", "tts")},
+        "models": {k: _str(models.get(k)) for k in ("llm", "stt", "tts", "live")},
         "usage": usage(d.get("usage")),
         "cost": cost(d.get("cost")),
     }

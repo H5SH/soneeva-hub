@@ -183,6 +183,14 @@
     "hub.advertisement.update": {
       "label": "Change advertisements",
       "description": "Create, edit, publish, withdraw and delete advertisements."
+    },
+    "hub.demo.view": {
+      "label": "See demo settings",
+      "description": "Read the demo's settings: agents, phone menu and what the demo page shows."
+    },
+    "hub.demo.update": {
+      "label": "Change demo settings",
+      "description": "Change the demo's settings; the demo follows them at once."
     }
   },
   "nl": {
@@ -369,6 +377,14 @@
     "hub.advertisement.update": {
       "label": "Advertenties wijzigen",
       "description": "Advertenties maken, bewerken, publiceren, intrekken en verwijderen."
+    },
+    "hub.demo.view": {
+      "label": "Demo-instellingen bekijken",
+      "description": "De instellingen van de demo lezen: agents, telefoonmenu en wat de demopagina toont."
+    },
+    "hub.demo.update": {
+      "label": "Demo-instellingen wijzigen",
+      "description": "De instellingen van de demo wijzigen; de demo volgt ze meteen."
     }
   },
   "de": {
@@ -555,6 +571,14 @@
     "hub.advertisement.update": {
       "label": "Anzeigen ändern",
       "description": "Anzeigen erstellen, bearbeiten, veröffentlichen, zurückziehen und löschen."
+    },
+    "hub.demo.view": {
+      "label": "Demo-Einstellungen ansehen",
+      "description": "Die Einstellungen der Demo lesen: Agents, Telefonmenü und was die Demoseite zeigt."
+    },
+    "hub.demo.update": {
+      "label": "Demo-Einstellungen ändern",
+      "description": "Die Einstellungen der Demo ändern; die Demo übernimmt sie sofort."
     }
   }
 }

@@ -107,8 +107,21 @@ def test_calls_per_day_split_the_cost_and_fill_gaps(platform, client, bearer):
     assert [d["day"] for d in days] == ["2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03"]
     assert days[0]["calls"] == 0 and days[2]["calls"] == 1
     assert days[1] == {"day": "2026-10-01", "calls": 1, "minutes": 1.5, "llm": 0.1, "stt": 0.1, "tts": 0.2,
-                       "telephony": 0.1, "total": 0.5}
+                       "live": 0.0, "telephony": 0.1, "total": 0.5}
     mine = client.get(url, headers=as_(bearer, "sp")).json()["days"]
     assert sum(d["calls"] for d in mine) == 1  # sp looks after u1 only
     call = client.get("/v1/platform/calls/web-u1/c0?scope=Chats.View", headers=as_(bearer, "admin")).json()
-    assert call["cost"]["telephony"] == 0.1
+    assert call["cost"]["telephony"] == 0.1 and call["engine"] == "smart"  # before Spark: Smart
+
+
+def test_spark_calls_cost_live_and_filter_by_engine(platform, client, bearer):
+    platform.db.rows[("callers/web-u1/calls", "c0")] |= {
+        "engine": "spark", "duration_seconds": 60, "cost": {"live": 0.02, "carrier": 0.01, "total": 0.03}}
+    url = "/v1/platform/calls/daily?scope=Chats.View&from=2026-09-30T00:00:00Z&to=2026-10-03T23:59:59Z"
+    spark = client.get(url + "&engine=spark", headers=as_(bearer, "admin")).json()["days"]
+    assert sum(d["calls"] for d in spark) == 1 and spark[1]["live"] == 0.02 and spark[1]["stt"] == 0
+    smart = client.get(url + "&engine=smart", headers=as_(bearer, "admin")).json()["days"]
+    assert all(d["live"] == 0 for d in smart) and spark[1]["calls"] + smart[1]["calls"] == 1
+    calls = client.get("/v1/platform/calls?scope=Chats.View&engine=spark", headers=as_(bearer, "admin"))
+    assert [c["engine"] for c in calls.json()["calls"]] == ["spark"]
+    assert client.get(url + "&engine=fast", headers=as_(bearer, "admin")).status_code == 422

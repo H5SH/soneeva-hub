@@ -138,7 +138,8 @@
     {"group": "agent", "twins": false, "scopes": ["Agent.Use"]},
     {"group": "tools", "twins": false, "scopes": ["Tools.Write"]},
     {"group": "advertisements", "twins": false, "scopes": ["Advertise.View", "Advertise.Write"]},
-    {"group": "voice", "twins": false, "scopes": ["Voice.Url.Write", "Voice.Sandbox"]}
+    {"group": "voice", "twins": false, "scopes": ["Voice.Url.Write", "Voice.Sandbox"]},
+    {"group": "demo", "twins": false, "scopes": ["Ivr.View", "Demo.Settings"]}
   ],
   "advertisements": {"backgrounds": ["ink", "teal", "sand", "mint", "coral", "image"], "maxBusinesses": 500},
   "platformRoles": {

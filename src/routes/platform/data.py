@@ -17,6 +17,7 @@ from src.tunables import tunable
 
 router = APIRouter(prefix="/v1", tags=["platform data"])
 VIEW = Scope.HUB_PLATFORM_VIEW
+ENGINE = Query(default=None, pattern="^(spark|smart)$")
 
 
 @router.get("/scopes/{app_id}")
@@ -33,11 +34,12 @@ async def list_calls(
     caller: str | None = Query(default=None, max_length=80),
     since: str | None = Query(default=None, alias="from"),
     until: str | None = Query(default=None, alias="to"),
-    before: str | None = None, limit: int = Query(default=50, ge=1),
+    before: str | None = None, limit: int = Query(default=50, ge=1), engine: str | None = ENGINE,
     actor: Actor = requires_actor(VIEW),
 ) -> dict:
+    """`engine`: only Spark or only Smart calls."""
     span = CallRange(since=parse_iso(since), until=parse_iso(until), before=parse_iso(before))
-    return await data.calls(actor, scope, caller, span, min(limit, tunable("people.callsPageMax")))
+    return await data.calls(actor, scope, caller, span, min(limit, tunable("people.callsPageMax")), engine)
 
 
 @router.get("/platform/calls/totals")
@@ -54,12 +56,13 @@ async def daily_calls(
     data: PlatformDataDep, scope: str = Query(max_length=60),
     caller: str | None = Query(default=None, max_length=80),
     since: str | None = Query(default=None, alias="from"),
-    until: str | None = Query(default=None, alias="to"),
+    until: str | None = Query(default=None, alias="to"), engine: str | None = ENGINE,
     actor: Actor = requires_actor(VIEW),
 ) -> dict:
-    """Per UTC day (default: the last `people.callDays`): calls, minutes and cost by part."""
+    """Per UTC day (default: the last `people.callDays`): calls, minutes and cost by part (`live` is
+    Spark's), of only Spark or only Smart calls with `engine`."""
     span = CallRange(since=parse_iso(since), until=parse_iso(until))
-    return {"days": await data.daily(actor, scope, caller, span)}
+    return {"days": await data.daily(actor, scope, caller, span, engine)}
 
 
 @router.get("/platform/home")

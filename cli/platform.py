@@ -1,12 +1,14 @@
 """Platform commands: the hub key, seeds and businesses."""
 
+import json
 from pathlib import Path
 
 from cli.context import Context
 from cli.output import Printer
 from src.db import Write
 from src.models.admin import Scope
-from src.models.db import Default
+from src.models.db import DEMO_SETTINGS, Default
+from src.models.demo import DemoSettings
 from src.services.catalogue import read_console_scopes, save_catalogue, seed_platform_roles
 from src.services.errors import AdminError
 from src.services.voice import VOICE_APP, VOICE_TOOL
@@ -24,7 +26,7 @@ ADMIN_SCOPES = [
     Scope.HUB_PEOPLE_VIEW, Scope.HUB_PEOPLE_UPDATE, Scope.HUB_ACCOUNT_RECOVER, Scope.HUB_PLATFORM_VIEW,
     Scope.HUB_BUSINESS_VIEW, Scope.HUB_BUSINESS_UPDATE, Scope.HUB_SERVICEPERSON_VIEW, Scope.HUB_PAYMENT_VIEW,
     Scope.HUB_PAYMENT_UPDATE, Scope.HUB_HANDOFF_CREATE, Scope.HUB_MEDIA_VIEW, Scope.HUB_MEDIA_UPDATE,
-    Scope.HUB_ADVERTISEMENT_VIEW, Scope.HUB_ADVERTISEMENT_UPDATE,
+    Scope.HUB_ADVERTISEMENT_VIEW, Scope.HUB_ADVERTISEMENT_UPDATE, Scope.HUB_DEMO_VIEW, Scope.HUB_DEMO_UPDATE,
 ]
 VOICE_SCOPES = [Scope.HUB_USAGE_WRITE, Scope.HUB_PLAN_VIEW]
 ADMIN_TOOL = "karbon-admin"
@@ -104,6 +106,16 @@ async def list_businesses(ctx: Context, out: Printer, args) -> None:
         [b.model_dump(mode="json") | {"numbers": len(b.numbers)} for b in await ctx.businesses.every()],
         ["id", "name", "type", "status", "provisioned", "voiceUrl", "numbers"],
     )
+
+
+async def import_demo_settings(ctx: Context, out: Printer, args) -> None:
+    """`demo/settings` from a JSON file (the DemoSettings shape); the demo follows it live."""
+    try:
+        settings = DemoSettings(**json.loads(Path(args.path).read_text()))
+    except (OSError, ValueError) as error:
+        raise AdminError(f"Not demo settings: {error}") from error
+    await ctx.db.set_row(Default.DEMO, DEMO_SETTINGS, settings.model_dump())
+    out.done("demo/settings written: the demo picks it up at once.")
 
 
 async def voice_secret(ctx: Context, out: Printer, args) -> None:

@@ -49,6 +49,8 @@ class Scope(StrEnum):
     HUB_MEDIA_VIEW = "hub.media.view"
     HUB_MEDIA_UPDATE = "hub.media.update"
     HUB_PLATFORM_VIEW = "hub.platform.view"
+    HUB_DEMO_VIEW = "hub.demo.view"
+    HUB_DEMO_UPDATE = "hub.demo.update"
     HUB_PEOPLE_VIEW = "hub.people.view"
     HUB_PEOPLE_UPDATE = "hub.people.update"
     HUB_PAYMENT_VIEW = "hub.payment.view"

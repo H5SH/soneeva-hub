@@ -39,6 +39,8 @@ class Default(StrEnum):
     ADVERTISEMENTS = "advertisements"
     #: Demo-owned: the browser demo's callers, calls and messages, in snake_case.
     CALLERS = "callers"
+    #: The demo's settings (`demo/settings`), camelCase: written here, read and followed by the demo.
+    DEMO = "demo"
 
 
 class BusinessDb(StrEnum):
@@ -74,6 +76,8 @@ Collection = Default | BusinessDb
 #: settings/{id} in a business database.
 AGENT_SETTINGS = "agent"
 CONSOLE_SETTINGS = "console"
+#: demo/{id} in `(default)`.
+DEMO_SETTINGS = "settings"
 
 
 # ── doc ids ─────────────────────────────────────────────────────────────────

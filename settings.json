@@ -8,11 +8,6 @@
     },
     "locationsCacheSeconds": 86400
   },
-  "deploy": {
-    "image": "{region}-docker.pkg.dev/{project}/voice/soneeva-voice:latest",
-    "localRepo": "../soneeva-voice",
-    "localPortStart": 8100
-  },
   "handoff": {"consoleUrl": "https://console.soneeva.com", "localConsoleUrl": "http://localhost:3000"},
   "scopes": {
     "soneeva": [
@@ -81,7 +76,8 @@
       "gym": "appointments",
       "hotel": "hotel"
     },
-    "checklistStart": ["assigned", "meeting", "subscribed", "mcp"],
+    "checklistStart": ["assigned", "meeting", "subscribed", "mcp", "deployment"],
+    "staffItems": ["meeting", "deployment"],
     "checklists": {
       "food": ["profile", "branches", "hours", "menu", "agent", "number", "test-call"],
       "appointments": ["profile", "branches", "hours", "services", "booking-rules", "agent", "number", "test-call"],
@@ -92,7 +88,7 @@
       "assigned": "Serviceperson assigned",
       "meeting": "Meeting with the serviceperson",
       "subscribed": "Subscribed to a plan",
-      "mcp": "Business systems connected",
+      "mcp": "Business systems connected", "deployment": "Voice service deployed",
       "profile": "Complete the business profile",
       "branches": "Add every branch",
       "hours": "Confirm opening hours",
@@ -141,13 +137,15 @@
     {"group": "profile", "twins": false, "scopes": ["Profile.Write"]},
     {"group": "agent", "twins": false, "scopes": ["Agent.Use"]},
     {"group": "tools", "twins": false, "scopes": ["Tools.Write"]},
-    {"group": "advertisements", "twins": false, "scopes": ["Advertise.View", "Advertise.Write"]}
+    {"group": "advertisements", "twins": false, "scopes": ["Advertise.View", "Advertise.Write"]},
+    {"group": "voice", "twins": false, "scopes": ["Voice.Url.Write", "Voice.Sandbox"]}
   ],
   "advertisements": {"backgrounds": ["ink", "teal", "sand", "mint", "coral", "image"], "maxBusinesses": 500},
   "platformRoles": {
     "superadmin": ["*", "platform.docs.view", "Profile.Write"],
     "serviceperson": ["Businesses.Access", "Servicepersons.View", "Profile.Write"],
-    "sales": ["Businesses.View", "Businesses.Assign", "Servicepersons.View", "Profile.Write"]
+    "sales": ["Businesses.View", "Businesses.Assign", "Servicepersons.View", "Profile.Write"],
+    "developer": ["Businesses.View", "Voice.Url.Write", "Voice.Sandbox", "Profile.Write"]
   },
   "agent": {"minMinutes": 15, "maxMinutes": 120, "defaultMinutes": 30}
 }

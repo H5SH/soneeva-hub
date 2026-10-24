@@ -24,6 +24,7 @@ from src.services.phone_numbers import PhoneNumberService
 from src.services.plans import PlanService
 from src.services.platform.data import PlatformData
 from src.services.platform.home import HomeService
+from src.services.sandbox import SandboxService
 from src.services.tokens.deps import ApiAuthDep
 from src.services.usage import UsageService
 from src.services.voice import VoiceService
@@ -96,6 +97,7 @@ PlansDep = Annotated[ByMode[PlanService], Depends(_state("plans"))]
 WebhooksDep = Annotated[ByMode[WebhookService], Depends(_state("webhooks"))]
 BusinessDep = Annotated[BusinessService, Depends(_state("businesses"))]
 VoiceDep = Annotated[VoiceService, Depends(_state("voice"))]
+SandboxDep = Annotated[SandboxService, Depends(_state("sandbox"))]
 UsageDep = Annotated[UsageService, Depends(_state("usage"))]
 NumbersDep = Annotated[PhoneNumberService, Depends(_state("numbers"))]
 CustomerDep = Annotated[CustomerService, Depends(_state("customers"))]

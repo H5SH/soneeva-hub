@@ -100,8 +100,8 @@ uv run python -m cli db:prune [--apply]          # unused top-level collections 
 uv run python -m cli scopes:sync soneeva ../console/scopes.json   # scopes/soneeva from the console
 uv run python -m cli person:save <uid> --role serviceperson --phone +316...   # a serviceperson is a person
 uv run python -m cli businesses
-uv run python -m cli business:deploy <id>        # (re)deploy its soneeva-voice
-uv run python -m cli business:provision <id>     # finish or retry a sign-up's provisioning (idempotent; waits for its indexes)
+uv run python -m cli business:secret <id>        # its voice env into Secret Manager (voice-{id}), if missing
+uv run python -m cli business:provision <id>     # finish or retry provisioning; adds new checklist items, keeps progress (idempotent; waits for its indexes)
 uv run python -m cli business:delete <id>        # soft-delete the row; database and owner account stay
 uv run python -m cli app:update soneeva --scopes hub.business.view,hub.business.create
 ```
@@ -111,7 +111,7 @@ uv run python -m cli app:update soneeva --scopes hub.business.view,hub.business.
 | Caller | Is | `hub.*` scopes |
 | --- | --- | --- |
 | app `soneeva` | the product: plans, Stripe, `scopes/soneeva`; the console signs as it (`soneeva_staging` for staging) | `hub.business.*`, `hub.serviceperson.view`, `hub.voice.update`, `hub.number.*`, `hub.account.view`/`.create`/`.update`/`.delete`/`.recover`, `hub.billing.*`, `hub.handoff.redeem`, `hub.media.view`/`.update` |
-| tool `soneeva-voice` | voice deployments (a key per business, issued at deploy, rotated by redeploy) | `hub.usage.write`, `hub.plan.view` |
+| tool `soneeva-voice` | voice services (a key per business, issued into its `voice-{id}` secret; sandbox twins rotate theirs in karbon-admin) | `hub.usage.write`, `hub.plan.view` |
 | tool `karbon-admin` | the internal app's server | `hub.people.*`, `hub.payment.*`, `hub.handoff.create`, `hub.account.recover`, `hub.platform.view`, `hub.business.view`/`.update`, `hub.serviceperson.view`, `hub.media.view`/`.update` |
 
 An `apps/karbon-admin` or `apps/soneeva-voice` from before moves to `tools/` with its keys;
@@ -135,7 +135,7 @@ uv run python -m cli tool:key:rotate karbon-admin    # HUB_APP_ID / HUB_KEY_ID /
 
 A tool (`tools/{id}`) holds hub keys and scopes and is never in Stripe: no plans, webhooks,
 checkout or staging twin. Apps and tools share one id space. `soneeva-voice` has a key per business
-(`subjectKeys`), so `tool:key:rotate` refuses it: `business:deploy` rotates that business's key.
+(`subjectKeys`), so `tool:key:rotate` refuses it: a business's key is issued into its `voice-{id}` secret.
 
 ### Staging (Stripe test mode)
 

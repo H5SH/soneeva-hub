@@ -30,6 +30,8 @@ async def plan_status(
     if caller.business_id != business_id:
         raise PlatformError("Call with sub = businessId", 403)
     business = await businesses.require(caller, business_id)
+    if business.sandboxOf:  # a developer's local voice: always served, never billed
+        return {"active": True, "status": "sandbox", "plan": None, "periodEnd": None, "test": True}
     record = await billings[business.mode].get_record(business.appId, business.id)
     end = record.current_period_end
     return {"active": record.is_active, "status": record.status, "plan": record.plan_code,

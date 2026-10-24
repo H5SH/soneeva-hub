@@ -5,7 +5,6 @@ from pathlib import Path
 from cli.context import Context
 from cli.output import Printer
 from src.db import Write
-from src.deploy import LocalDeployer
 from src.models.admin import Scope
 from src.models.db import Default
 from src.services.catalogue import read_console_scopes, save_catalogue, seed_platform_roles
@@ -107,15 +106,12 @@ async def list_businesses(ctx: Context, out: Printer, args) -> None:
     )
 
 
-async def deploy_business(ctx: Context, out: Printer, args) -> None:
-    """`--public-url` (local only): the tunnel Twilio uses to reach this voice, kept for later redeploys."""
+async def voice_secret(ctx: Context, out: Printer, args) -> None:
+    """Secret Manager's `voice-{id}`, as a subscription writes it; one already there is left alone."""
     if not await ctx.businesses.get(args.business_id):
         raise AdminError(f"No business '{args.business_id}'.")
-    if args.public_url:
-        if not isinstance(ctx.voice.deployer, LocalDeployer):
-            raise AdminError("--public-url is only for local voices; Cloud Run gives each voice its own URL.")
-        ctx.voice.deployer.use_tunnel(args.business_id, args.public_url)
-    out.done(f"Voice for {args.business_id} at {await ctx.voice.deploy(args.business_id)}.")
+    await ctx.voice.provide(args.business_id)
+    out.done(f"voice-{args.business_id} is in Secret Manager: mount it in the voice's deployment.")
 
 
 async def provision_business(ctx: Context, out: Printer, args) -> None:

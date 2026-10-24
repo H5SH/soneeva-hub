@@ -7,7 +7,6 @@ from src.auth.password import PasswordSignIn
 from src.cloud import project_id, region
 from src.config import AppRegistry, Settings
 from src.db import DB, Database
-from src.deploy import Deploy, Deployer
 from src.numbers import NumberProvider, Numbers
 from src.payment import Payment, PaymentGateway
 from src.remote import Remote, RemoteService
@@ -33,6 +32,7 @@ from src.services.plans import PlanService
 from src.services.platform import PlatformData
 from src.services.platform.home import HomeService
 from src.services.roles import RoleStore
+from src.services.sandbox import SandboxService
 from src.services.tokens.keys import KeyStore
 from src.services.tokens.replay import ReplayGuard
 from src.services.tokens.verify import TokenVerifier
@@ -42,6 +42,7 @@ from src.services.voice import VoiceService
 from src.services.webhook import WebhookService
 from src.storage import FileStore, Storage
 from src.tunables import tunable
+from src.vault import SecretManager, Vault
 
 
 @dataclass
@@ -61,6 +62,7 @@ class Services:
     webhooks: ByMode[WebhookService]
     businesses: BusinessService
     voice: VoiceService
+    sandbox: SandboxService
     usage: UsageService
     numbers: PhoneNumberService
     customers: CustomerService
@@ -89,7 +91,7 @@ def console_url(settings: Settings | None) -> str:
 
 def assemble(
     settings: Settings | None, db: Database, payment: ByMode[PaymentGateway], accounts: AccountProvider,
-    storage: FileStore, deployer: Deployer, numbers: NumberProvider, remote: RemoteService,
+    storage: FileStore, vault: Vault, numbers: NumberProvider, remote: RemoteService,
     identity: PasswordSignIn | None = None,
 ) -> Services:
     """Every dependency injected, so tests pass fakes for the external ones. Stripe-backed services
@@ -105,7 +107,7 @@ def assemble(
     ads = AdvertisementService(db, businesses)
     people_service, platform_data = PeopleService(accounts, people), PlatformData(db, people)
     hub_url, project = (settings.service_base_url, project_id()) if settings else ("", "")
-    voice = VoiceService(db, businesses, tools, deployer, remote, hub_url, project)
+    voice = VoiceService(db, businesses, tools, vault, numbers, remote, hub_url, project)
     webhooks = payment.map(lambda gateway, mode: WebhookService(
         gateway, billing[mode], plans[mode], keys, mode, businesses.checklist.on_subscription))
     return Services(
@@ -114,8 +116,8 @@ def assemble(
         billing=billing, admin=admin, tools=tools, plans=plans,
         coupons=plans.map(lambda plan_service, mode: CouponService(payment[mode], plan_service)),
         webhooks=webhooks,
-        businesses=businesses, voice=voice,
-        usage=usage, numbers=PhoneNumberService(db, numbers, billing, businesses),
+        businesses=businesses, voice=voice, sandbox=SandboxService(db, businesses, voice),
+        usage=usage, numbers=PhoneNumberService(db, numbers, billing, businesses, voice),
         customers=CustomerService(payment, billing, businesses, usage),
         handoff=HandoffService(db, businesses, accounts, console_url(settings)),
         accounts=accounts, people=people_service, members=MemberService(accounts),
@@ -136,7 +138,7 @@ def build(settings: Settings) -> Services:
             Payment(settings.stripe_secret_key, settings.stripe_webhook_secret),
             Payment(settings.stripe_test_secret_key, settings.stripe_test_webhook_secret)
             if settings.stripe_test_secret_key else None),
-        accounts=Accounts(), storage=Storage(), deployer=Deploy(settings),
+        accounts=Accounts(), storage=Storage(), vault=SecretManager(project_id()),
         numbers=Numbers(settings.twilio_account_sid, settings.twilio_auth_token), remote=Remote(),
         identity=PasswordSignIn(settings.firebase_api_key) if settings.firebase_api_key else None,
     )

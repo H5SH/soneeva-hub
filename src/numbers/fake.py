@@ -7,6 +7,7 @@ class FakeNumbers(NumberProvider):
     def __init__(self) -> None:
         self.subaccounts: list[str] = []
         self.bought: list[tuple[str, str, str]] = []
+        self.pointed: dict[str, str] = {}
 
     async def search(self, country: str, contains: str, kind: str, limit: int) -> list[AvailableNumber]:
         return [AvailableNumber(phoneNumber=f"+3120{contains or '0'}{n:04d}", country=country.upper())
@@ -15,6 +16,9 @@ class FakeNumbers(NumberProvider):
     async def create_subaccount(self, name: str) -> Subaccount:
         self.subaccounts.append(name)
         return Subaccount(sid=f"AC{len(self.subaccounts):032d}", token="fake-token")
+
+    async def point(self, account_sid: str, number_sid: str, voice_url: str, status_url: str) -> None:
+        self.pointed[number_sid] = voice_url
 
     async def buy(self, account_sid: str, phone: str, voice_url: str, status_url: str) -> str:
         self.bought.append((account_sid, phone, voice_url))

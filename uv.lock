@@ -395,6 +395,23 @@ wheels = [
 ]
 
 [[package]]
+name = "google-cloud-secret-manager"
+version = "2.31.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core", extra = ["grpc"] },
+    { name = "google-auth" },
+    { name = "grpc-google-iam-v1" },
+    { name = "grpcio" },
+    { name = "proto-plus" },
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/99/c5/5f1d1940af5e3b3bcf719ade1d7be688ea8718d52fc6d44c2bb67006198f/google_cloud_secret_manager-2.31.0.tar.gz", hash = "sha256:29bb33b48c3b974495a4d015e06b06b126e23232bccd223d678da1e1a861b6e6", size = 286168, upload-time = "2026-10-01T18:18:01.402Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/db/c6/87d54065389947192be692ce37d65cf899a4540eab44eda5936cb3093cca/google_cloud_secret_manager-2.31.0-py3-none-any.whl", hash = "sha256:945ef53be34b09f94b86eeabca910e19460fb54680cf5e0a792a77d62355e88e", size = 229970, upload-time = "2026-10-01T18:12:09.248Z" },
+]
+
+[[package]]
 name = "google-cloud-storage"
 version = "3.13.1"
 source = { registry = "https://pypi.org/simple" }
@@ -693,6 +710,7 @@ dependencies = [
     { name = "firebase-admin" },
     { name = "google-cloud-firestore" },
     { name = "google-cloud-run" },
+    { name = "google-cloud-secret-manager" },
     { name = "httpx" },
     { name = "jinja2" },
     { name = "joserfc" },
@@ -719,6 +737,7 @@ requires-dist = [
     { name = "firebase-admin", specifier = ">=6.5.0" },
     { name = "google-cloud-firestore", specifier = ">=2.19.0" },
     { name = "google-cloud-run", specifier = ">=0.16.2" },
+    { name = "google-cloud-secret-manager", specifier = ">=2.31.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "joserfc", specifier = ">=1.7.5" },

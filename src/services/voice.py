@@ -1,65 +1,77 @@
-"""One soneeva-voice per business: its env, its deployment, and restarts on settings changes."""
+"""Each business's soneeva-voice env, kept in Secret Manager as `voice-{businessId}` (KEY="value" lines).
 
+Written once when the business subscribes (its own voice key: only the public half stays here); its
+Twilio subaccount is added when its first number is bought. A developer deploys the voice by hand,
+mounting that secret, and its URL is saved here (Voice.Url.Write), which points the numbers at it.
+Nothing here deploys or restarts a voice: it reads its settings, menus and recordings from the
+business's data and follows their changes itself.
+"""
+
+import io
 import logging
-from datetime import UTC, datetime
-from typing import Any
+
+from dotenv import dotenv_values
 
 from src.db import Database
-from src.deploy import Deployer
-from src.models.db import AGENT_SETTINGS, BusinessDb, Default
+from src.models.db import Default
 from src.models.payment import WebhookEvent
-from src.models.platform import Business, VoiceSettings
+from src.models.platform import Business
+from src.numbers import NumberProvider, NumbersError
 from src.remote import RemoteService
-from src.services.businesses import BusinessService
+from src.services.businesses import BusinessService, audit
+from src.services.errors import PlatformError
 from src.services.tools import ToolService
-from src.tunables import tunable
+from src.vault import Vault
 
 logger = logging.getLogger(__name__)
 READY_TIMEOUT_SECONDS = 30.0
-#: Checkout of this app deploys a voice; each deployment signs as the tool VOICE_TOOL with its own key.
+#: Subscribing to this app gets a voice env; each voice signs as the tool VOICE_TOOL with its own key.
 VOICE_APP = "soneeva"
 VOICE_TOOL = "soneeva-voice"
-#: Per-business fields on `businesses/{id}` passed as env, left out when empty. Never the master
-#: Twilio pair: a voice gets only its business's subaccount, from `secrets/{businessId}`.
-BUSINESS_ENV = {"MCP_URL": "mcpUrl", "WHATSAPP_FROM": "whatsappFrom"}
+#: Paths on the voice service that a number's calls and status callbacks go to.
+WEBHOOK_PATH = "/voice"
+STATUS_PATH = "/voice/status"
+
+
+def secret_name(business_id: str) -> str:
+    return f"voice-{business_id}"
+
+
+def to_dotenv(env: dict[str, str]) -> str:
+    quoted = {k: v.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") for k, v in env.items()}
+    return "".join(f'{k}="{v}"\n' for k, v in quoted.items())
+
+
+def from_dotenv(text: str) -> dict[str, str]:
+    return {k: v for k, v in dotenv_values(stream=io.StringIO(text)).items() if v is not None}
 
 
 class VoiceService:
-    def __init__(self, db: Database, businesses: BusinessService, tools: ToolService,
-                 deployer: Deployer, remote: RemoteService, hub_url: str, project: str) -> None:
+    def __init__(self, db: Database, businesses: BusinessService, tools: ToolService, vault: Vault,
+                 numbers: NumberProvider, remote: RemoteService, hub_url: str, project: str) -> None:
         self._db = db
         self._businesses = businesses
         self._tools = tools
-        self._deployer = deployer
+        self._vault = vault
+        self._numbers = numbers
         self._remote = remote
         self._hub_url = hub_url
         self._project = project
 
-    @property
-    def deployer(self) -> Deployer:
-        return self._deployer
-
-    async def env(self, business: Business) -> dict[str, str]:
-        """Issues the business's voice key: a redeploy rotates it, and the business doc names it."""
-        bdb = self._businesses.business_db(business)
-        agent = await bdb.get_row(BusinessDb.SETTINGS, AGENT_SETTINGS) or {}
+    async def issue_env(self, business: Business) -> dict[str, str]:
+        """A new voice key for the business (the previous one stops working at once) and its env."""
         kid, private_pem = await self._tools.issue_subject_key(VOICE_TOOL, business.id)
         await self._businesses.set_fields(business.id, {"voiceKeyId": kid})
-        env = {k: getattr(business, f) for k, f in BUSINESS_ENV.items() if getattr(business, f)}
-        env |= {
+        env = {
             "BUSINESS_ID": business.id,
             "BUSINESS_NAME": business.name,
             "BUSINESS_TYPE": business.type,
             # soneeva-voice reads it as src/db/place.py does: empty is nested in `(default)`.
             "FIRESTORE_DATABASE": business.dbId,
-            "CALL_LANGUAGE": agent.get("language") or tunable("voice.language"),
-            "VOICE": agent.get("voice") or tunable("voice.voice"),
             "HUB_URL": self._hub_url,
             "HUB_APP_ID": VOICE_TOOL,
             "HUB_KEY_ID": kid,
-            "HUB_PRIVATE_KEY": private_pem.replace("\n", "\\n"),
-            # Changes every deploy, so a restart with otherwise equal env still makes a new revision.
-            "RESTART_AT": datetime.now(UTC).isoformat(),
+            "HUB_PRIVATE_KEY": private_pem,
         }
         if self._project:
             env["STORAGE_BUCKET"] = f"gs://{self._project}.firebasestorage.app"
@@ -69,34 +81,46 @@ class VoiceService:
             env["TWILIO_AUTH_TOKEN"] = secret["twilioAuthToken"]
         return env
 
-    async def deploy(self, business_id: str) -> str:
+    async def provide(self, business_id: str) -> None:
+        """The business's secret, once: a repeated subscription event leaves it (and its key) alone."""
+        if await self._vault.read(secret_name(business_id)) is not None:
+            return
         business = await self._businesses.require(None, business_id)
-        url = await self._deployer.deploy(business.id, await self.env(business))
-        await self._businesses.set_fields(business.id, {"voiceUrl": url, "deployedAt": datetime.now(UTC)})
-        ready = await self._remote.ready(url, READY_TIMEOUT_SECONDS)
-        await self._businesses.set_fields(business.id, {"voiceReady": ready})
-        logger.info("voice for %s at %s (ready=%s)", business.id, url, ready)
-        return url
+        await self._vault.write(secret_name(business_id), to_dotenv(await self.issue_env(business)))
 
-    async def deploy_quietly(self, business_id: str) -> None:
-        """For background tasks: a failure is logged and recorded, never raised."""
+    async def provide_quietly(self, business_id: str) -> None:
+        """For background tasks: a failure is logged, never raised; `business:secret` writes it again."""
         try:
-            await self.deploy(business_id)
-        except Exception as error:  # noqa: BLE001 - recorded on the business for the API
-            logger.exception("voice deploy failed for %s", business_id)
-            await self._businesses.set_fields(business_id, {"deployError": str(error)[:300]})
+            await self.provide(business_id)
+        except Exception:  # noqa: BLE001 - the webhook has answered already
+            logger.exception("voice secret failed for %s", business_id)
 
-    def checkout_business(self, app_id: str, event: WebhookEvent) -> str | None:
-        """The business to deploy for, when this event is a completed checkout of the voice app.
-        Every endpoint receives every app's events, so the session must name this app."""
+    async def add(self, business_id: str, fields: dict[str, str]) -> None:
+        """Merged into the business's secret as a new version; the next voice revision gets it."""
+        await self.provide(business_id)
+        env = from_dotenv(await self._vault.read(secret_name(business_id)) or "")
+        await self._vault.write(secret_name(business_id), to_dotenv(env | fields))
+
+    def subscribed_business(self, app_id: str, event: WebhookEvent) -> str | None:
+        """The business whose voice env is due, when this event is a completed checkout of the voice
+        app. Every endpoint receives every app's events, so the session must name this app."""
         if app_id != VOICE_APP or event.type != "checkout.session.completed":
             return None
         metadata = event.data.get("metadata") or {}
         return metadata.get("tenant") if metadata.get("app") == app_id else None
 
-    async def save_settings(self, business: Business, settings: VoiceSettings) -> dict[str, Any]:
-        """Writes settings/agent; a running deployment must restart to pick it up."""
-        await self._businesses.business_db(business).set_row(
-            BusinessDb.SETTINGS, AGENT_SETTINGS, settings.model_dump()
-        )
-        return {"saved": True, "restarting": bool(business.voiceUrl)}
+    async def set_url(self, business: Business, url: str, by: str) -> Business:
+        """Where the developer deployed it: it must answer /health, and every number follows it."""
+        url = url.rstrip("/")
+        if not await self._remote.ready(url, READY_TIMEOUT_SECONDS):
+            raise PlatformError(f"{url}/health does not answer", 422)
+        try:
+            for number in business.numbers:
+                if number.sid and business.twilioAccountSid:
+                    await self._numbers.point(business.twilioAccountSid, number.sid,
+                                              url + WEBHOOK_PATH, url + STATUS_PATH)
+        except NumbersError as error:
+            raise PlatformError(str(error), 502) from error
+        await self._businesses.set_fields(business.id, {"voiceUrl": url})
+        await audit(self._db, "voice.url", business.id, by, {"voiceUrl": url})
+        return business.model_copy(update={"voiceUrl": url})

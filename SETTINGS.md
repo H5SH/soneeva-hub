@@ -5,10 +5,7 @@ per-machine values live in `.env` (see `.env.example`); contracts are constants 
 
 | Key | What changing it does |
 | --- | --- |
-| `cloud.region` | Region of new Cloud Run voice services and new business databases (`b-{id}`). Existing ones stay where they are. |
-| `deploy.image` | Image new voice revisions run on Cloud Run (`{region}`, `{project}` are filled in). |
-| `deploy.localRepo` | soneeva-voice checkout the local driver runs (relative to `hub/`). |
-| `deploy.localPortStart` | First port the local driver tries. |
+| `cloud.region` | Default location of new business databases of their own (`b-{id}`). Existing ones stay where they are. |
 | `handoff.consoleUrl` | Console a serviceperson handoff lands on (`{consoleUrl}/handoff?code=`). |
 | `handoff.localConsoleUrl` | The same when karbon-hub runs with `ENVIRONMENT=development`. |
 | `scopes.<appId>` | Fallback scope catalogue for an app (`[{id, group}]`); `seed:soneeva` writes it to `scopes/soneeva`. Generated from the console's `scopes.json`; a test keeps them equal. |
@@ -16,10 +13,11 @@ per-machine values live in `.env` (see `.env.example`); contracts are constants 
 | `stripe.plansCacheSeconds` | How long the account's plans (products with default prices) are kept before Stripe is listed again. Product/price webhooks and the hub's own writes drop them at once; this only bounds another instance. |
 | `stripe.tenantCacheSeconds` | How long one tenant's subscription is kept. Subscription, invoice and checkout webhooks drop it at once. |
 | `stripe.searchLagSeconds` | Customers created this recently are listed as well as searched: Stripe search lags creation, and a missed one would be created twice. |
-| `stripe.eventDedupeSeconds` | How long a handled webhook event id is remembered, so a redelivery does not redeploy a voice. |
+| `stripe.eventDedupeSeconds` | How long a handled webhook event id is remembered, so a redelivery does not repeat its side effects. |
 | `dataRegions.default` | The region a sign-up gets when its country is in no other region's `countries`; it lives nested in `(default)` (no `dbId`). |
 | `dataRegions.regions` | Shared regions offered at sign-up: `label`, and except the default, `location` (Firestore location of its database `region-{key}`, made on first use) and `countries` (ISO codes that pick it by default). A business there has `dbId` `{key}/{id}`. |
 | `dataRegions.locationsCacheSeconds` | How long the Firestore locations offered for a custom database (`GET /v1/data-locations`) are kept before asking Google again. |
+| `businesses.staffItems` | Checklist items the assigned serviceperson (or Businesses.Write) ticks in karbon-admin: `meeting`, and `deployment` once the developer's voice service is live. |
 | `businesses.idLength` | Length of new business ids. |
 | `businesses.indexWaitSeconds` | How long provisioning waits for a new `b-{id}`'s indexes (src/db/indexes.py) before recording `provisionError` "indexes still building"; the retry waits again. |
 | `businesses.indexPollSeconds` | How often it checks them meanwhile. |

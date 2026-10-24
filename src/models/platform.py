@@ -37,14 +37,15 @@ class Caller(BaseModel):
         return bool(self.uid) and self.uid == business.servicepersonUid
 
     def reaches(self, business: "Business") -> bool:
-        """A staging caller only ever reaches test businesses."""
+        """A staging caller only ever reaches test businesses. A platform person reaches a sandbox twin
+        as they reach its live business (its serviceperson and business limit are the live one's)."""
         if self.mode is Mode.TEST and not business.test:
             return False
         if self.business_id:
             return self.business_id == business.id
-        if self.assigned_only and not self.assigned_to(business):
+        if self.assigned_only and not business.sandboxOf and not self.assigned_to(business):
             return False
-        return not self.businesses or business.id in self.businesses
+        return not self.businesses or (business.sandboxOf or business.id) in self.businesses
 
 
 HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
@@ -121,12 +122,8 @@ class BusinessPatch(BaseModel):
     status: BusinessStatus | None = None
     configured: bool | None = None
     servicepersonUid: str | None = None
-    mcpUrl: str = Field(default="", max_length=500, pattern=r"^(https://[^\s]+)?$")
-    whatsappFrom: str = Field(default="", pattern=r"^(whatsapp:\+[1-9]\d{6,14})?$")
-
-
-#: Per-business values the hub passes into that business's voice deployment.
-AGENT_CONNECTION = ("mcpUrl", "whatsappFrom")
+    voiceUrl: str | None = Field(default=None, max_length=500, pattern=r"^https://[^\s/]+(/[^\s]*)?$",
+                                 description="Where the developer deployed its voice; needs Voice.Url.Write.")
 
 
 class ChecklistTick(BaseModel):
@@ -167,8 +164,6 @@ class Business(BaseModel):
     servicepersonUid: str | None = None
     numbers: list[PhoneNumber] = Field(default_factory=list)
     voiceUrl: str | None = None
-    mcpUrl: str = ""
-    whatsappFrom: str = ""
     plan: BusinessPlan | None = None
     test: bool = Field(default=False, description="Signed up by a staging caller: Stripe test mode for good.")
     country: str = ""
@@ -180,6 +175,8 @@ class Business(BaseModel):
     twilioAccountSid: str | None = None
     consentAt: str = ""
     createdAt: Any = None
+    sandboxOf: str | None = Field(default=None, description="A sandbox twin: the live business it tests.")
+    sandboxId: str | None = Field(default=None, description="This business's sandbox twin, once made.")
 
     @property
     def mode(self) -> Mode:
@@ -194,11 +191,6 @@ class Serviceperson(BaseModel):
     phone: str = ""
     email: str = ""
     active: bool = True
-
-
-class VoiceSettings(BaseModel):
-    language: str = Field(pattern=r"^(auto|[a-z]{2,3}(-[A-Za-z0-9]{2,8})*)$")
-    voice: str = Field(min_length=1, max_length=80)
 
 
 class UsageReport(BaseModel):

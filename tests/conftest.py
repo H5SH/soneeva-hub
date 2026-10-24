@@ -9,7 +9,6 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from src.auth import FakeAccounts
 from src.db import FakeDatabase
-from src.deploy import FakeDeployer
 from src.models.auth import Audience
 from src.numbers import FakeNumbers
 from src.payment import FakePayment
@@ -19,6 +18,7 @@ from src.services.tokens.keys import KeyStore
 from src.services.tokens.replay import ReplayGuard
 from src.services.tokens.verify import TokenVerifier
 from src.storage import FakeStorage
+from src.vault import FakeVault
 from src.wiring import Services, assemble
 
 APP_ID = "softbox"
@@ -103,7 +103,7 @@ def services() -> Services:
     accounts.add("owner1", username="owner1")
     built = assemble(
         settings=None, db=db, payment=ByMode(FakePayment(), FakePayment()), accounts=accounts,
-        storage=FakeStorage(), deployer=FakeDeployer(), numbers=FakeNumbers(), remote=FakeRemote(),
+        storage=FakeStorage(), vault=FakeVault(), numbers=FakeNumbers(), remote=FakeRemote(),
     )
     built.business_dbs = db.opened  # type: ignore[attr-defined]
     return built

@@ -42,6 +42,13 @@ class TwilioNumbers(NumberProvider):
         data = await self._request("POST", "/Accounts.json", data={"FriendlyName": name})
         return Subaccount(sid=data["sid"], token=data["auth_token"])
 
+    async def point(self, account_sid: str, number_sid: str, voice_url: str, status_url: str) -> None:
+        await self._request(
+            "POST", f"/Accounts/{account_sid}/IncomingPhoneNumbers/{number_sid}.json",
+            data={"VoiceUrl": voice_url, "VoiceMethod": "POST",
+                  "StatusCallback": status_url, "StatusCallbackMethod": "POST"},
+        )
+
     async def buy(self, account_sid: str, phone: str, voice_url: str, status_url: str) -> str:
         data = await self._request(
             "POST", f"/Accounts/{account_sid}/IncomingPhoneNumbers.json",

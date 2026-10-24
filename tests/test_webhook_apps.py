@@ -19,7 +19,7 @@ def test_an_event_naming_another_app_is_not_applied_here(client, services):
         "subscription": "sub_x", "metadata": {"app": "snapback", "tenant": biz}}}}
     response = client.post("/webhooks/stripe/soneeva", content=json.dumps(event).encode())
     assert response.json() == {"result": "unmapped"}
-    assert services.voice._deployer.deployed == []
+    assert services.voice._vault.versions == {}  # no voice env for another app's checkout
 
 
 def test_product_events_of_this_app_drop_the_plan_cache(client, services):

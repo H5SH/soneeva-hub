@@ -74,8 +74,8 @@ COMMANDS = [
      ["business_id"], []),
     ("business:delete", "Soft-delete a business row (not its database or owner account)",
      platform.delete_business, ["business_id"], []),
-    ("business:deploy", "Deploy or restart a business's voice service", platform.deploy_business,
-     ["business_id"], ["public-url"]),
+    ("business:secret", "Write a business's voice env to Secret Manager (voice-{id}), if missing",
+     platform.voice_secret, ["business_id"], []),
 ]
 
 # Options that are not plain strings.

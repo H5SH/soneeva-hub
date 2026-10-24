@@ -59,6 +59,8 @@ karbon-hub is now a JSON API only. Nothing is live yet, so this is a first deplo
   and assigning a business read people. `(default)/servicepersons` and `seed:servicepersons` are gone; delete
   that collection, and give each serviceperson the role (`person:save <uid> --role serviceperson --phone …`).
 - Each new `b-{id}` gets the console's `calls.startedAt` indexes at sign-up.
+- Voice by hand: existing businesses get the new `deployment` checklist item with `business:provision <id>`
+  (adds missing items, keeps progress), and their voice env with `business:secret <id>`.
 - Data regions: sign-up picks where a business's data goes (`dataRegion`, `dataLocation`; `GET /v1/data-locations`
   lists them). The default region (US) nests it in `(default)` under `businesses/{id}` (empty `dbId`); the EU
   in `region-eu` (made in `eur3` on the first EU sign-up); a custom location gets its own `b-{id}` there.
@@ -140,12 +142,12 @@ Add:
 | `roles/datastore.owner` | `(default)`, creating business databases `b-{id}` and their indexes |
 | `roles/firebaseauth.admin` | accounts, claims, reset links and reset emails |
 | `roles/storage.objectAdmin` on the bucket `{project}.firebasestorage.app` only | `/v1/media`: avatars, icons, logos |
-| `roles/run.admin` | deploying soneeva-voice services |
-| `roles/iam.serviceAccountUser` on the voice runtime service account | deploying voices as it |
+| `roles/secretmanager.admin` | writing each business's voice env as `voice-{businessId}` |
 | `roles/secretmanager.secretAccessor` on the three secrets below only | Cloud Run reads them into env at start |
 
-Remove, if granted earlier: project-wide `roles/secretmanager.*` roles (delete the `karbon-hub-key` and
-`session-secret` secrets), and any broad role (`roles/editor`, `roles/firebase.admin`) given while testing.
+Remove, if granted earlier: `roles/run.admin` and `roles/iam.serviceAccountUser` (the hub deploys
+nothing now), the `karbon-hub-key` and `session-secret` secrets, and any broad role (`roles/editor`,
+`roles/firebase.admin`) given while testing.
 
 ## APIs to enable
 
@@ -234,7 +236,7 @@ Where the keys go (each printed once):
 | --- | --- | --- |
 | `soneeva` | the console's Cloud Run service (env); a staging console uses `HUB_APP_ID=soneeva_staging` | `HUB_APP_ID`, `HUB_KEY_ID`, `HUB_PRIVATE_KEY`, plus `HUB_URL` |
 | `karbon-admin` | karbon-admin's hosting (env) | the same four names |
-| `soneeva-voice` | nowhere by hand: karbon-hub issues a per-business key at each voice deploy | — |
+| `soneeva-voice` | Secret Manager `voice-{businessId}`, written by karbon-hub at subscription; the developer mounts it at `/run/secrets/voice.env` in that business's voice service (whose service account needs `roles/secretmanager.secretAccessor` on it) | the whole env |
 
 ## Check list
 
@@ -247,10 +249,12 @@ Where the keys go (each printed once):
 - [ ] karbon-admin lists apps, businesses, people, roles; a sales person sees only their apps
 - [ ] the console signs up a business (`POST /v1/businesses`) as `soneeva`
 - [ ] the console's billing page: plans, checkout with `4242 4242 4242 4242`, the webhook arrives,
-      the voice deploys, `plan.active` is true; the portal opens
+      `voice-{businessId}` appears in Secret Manager, `plan.active` is true; the portal opens
 - [ ] a serviceperson with a running grant gets a handoff URL (`?code=`); the console lets them in
       once, a second open of the same URL lands on `/login?reason=handoff`, and so does one after a minute
-- [ ] karbon-admin's "Agent connection" saves an MCP URL; the business's voice redeploys with `MCP_URL`
+- [ ] the developer deploys the voice with that secret; a `Voice.Url.Write` person saves its URL in
+      karbon-admin, the serviceperson ticks "Voice service deployed", and the console can buy a number
+- [ ] a `Voice.Sandbox` person rotates the sandbox key; a local voice runs with that `.env`
 - [ ] assigning a serviceperson ticks "Serviceperson assigned"; a checkout ticks "Subscribed to a plan"
 - [ ] a call ends → `POST /v1/usage` → meter event in Stripe (identifier = the call id) → the day's
       seconds in karbon-admin's customer usage

@@ -84,7 +84,9 @@ class BusinessService:
         return business
 
     async def every(self) -> list[Business]:
-        return [Business(**row) for row in await self._db.get_rows(Default.BUSINESSES)]
+        """Sandbox twins left out, as everywhere businesses are listed or counted."""
+        rows = await self._db.get_rows(Default.BUSINESSES)
+        return [b for b in (Business(**row) for row in rows) if not b.sandboxOf]
 
     async def visible(
         self, caller: Caller, status: str | None = None, assigned: bool = False
@@ -98,7 +100,7 @@ class BusinessService:
                 raise PlatformError("assigned=me needs a person holding Businesses.Access", 403)
             filters["servicepersonUid"] = caller.uid
         rows = await self._db.get_rows(Default.BUSINESSES, filters or None)
-        found = [b for b in (Business(**r) for r in rows) if caller.reaches(b)
+        found = [b for b in (Business(**r) for r in rows) if caller.reaches(b) and not b.sandboxOf
                  and (status or b.status is not BusinessStatus.DELETED)]
         if not self._billing:
             return found

@@ -20,7 +20,7 @@ async def stripe_webhook(
     stripe_signature: str | None = Header(default=None),
 ) -> dict[str, str]:
     """Public: authenticated by the gateway signature. `{appId}_staging` is the app's Stripe test mode.
-    A paid voice checkout deploys the agent."""
+    A paid voice checkout writes that business's voice env to Secret Manager (src/services/voice.py)."""
     webhooks = by_mode[staged(app_id)[1]]
     payload = await request.body()
     try:
@@ -29,7 +29,8 @@ async def stripe_webhook(
         logger.warning(f"Rejected webhook for {app.id}: {error}")
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid webhook signature") from error
     result = await webhooks.handle(app, event)
-    business_id = voice.checkout_business(app.id, event) if result not in ("duplicate", "unmapped") else None
+    handled = result not in ("duplicate", "unmapped")
+    business_id = voice.subscribed_business(app.id, event) if handled else None
     if business_id:
-        tasks.add_task(voice.deploy_quietly, business_id)
+        tasks.add_task(voice.provide_quietly, business_id)
     return {"result": result}

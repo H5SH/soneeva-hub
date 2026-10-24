@@ -30,5 +30,9 @@ class NumberProvider(ABC):
     async def create_subaccount(self, name: str) -> Subaccount: ...
 
     @abstractmethod
+    async def point(self, account_sid: str, number_sid: str, voice_url: str, status_url: str) -> None:
+        """Sends a bought number's calls and status callbacks to these URLs."""
+
+    @abstractmethod
     async def buy(self, account_sid: str, phone: str, voice_url: str, status_url: str) -> str:
         """Purchase onto the subaccount with its voice webhook set. Returns the number's sid."""

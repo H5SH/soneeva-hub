@@ -19,9 +19,11 @@ from src.services.tokens.verify import AuthError
 PERSON_SCOPES: dict[Scope, tuple[str, ...]] = {
     Scope.HUB_BUSINESS_CREATE: ("Businesses.Write",),
     Scope.HUB_BUSINESS_VIEW: ("Businesses.View", "Businesses.Access", "Businesses.Assign"),
-    # Businesses.Access only reaches POST …/checklist/meeting; PATCH re-checks Write/Assign/Delete per field.
+    # Businesses.Access only reaches the staff checklist items; Voice.* only the voice URL and the
+    # sandbox; PATCH re-checks Write/Assign/Delete/Voice.Url.Write per field.
     Scope.HUB_BUSINESS_UPDATE: (
         "Businesses.Write", "Businesses.Assign", "Businesses.Access", "Businesses.Delete",
+        "Voice.Url.Write", "Voice.Sandbox",
     ),
     Scope.HUB_SERVICEPERSON_VIEW: ("Servicepersons.View", "Businesses.Assign"),
     Scope.HUB_VOICE_UPDATE: ("Businesses.Write",),

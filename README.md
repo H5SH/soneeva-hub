@@ -100,13 +100,18 @@ on), `businesses` (empty = every business), `tokens`, `disabled`, plus who looks
 and `payment.*`/`platform.*` scopes; never `hub.*` (an old `hub.*` id on a stored role is ignored and
 drops off on the next save). `GET /v1/roles` returns the catalogue a role picks from. Nobody gives a
 role, scope or app they don't hold, changes their own role, apps, businesses or disabled flag, or
-deletes a role someone holds (409). `checkout.session.completed` for `soneeva` deploys
-soneeva-voice for that business (Cloud Run when karbon-hub runs on Cloud Run, local processes
-otherwise); each deployment gets its own `soneeva-voice` key that only signs for its business
-(named on `businesses/{id}.voiceKeyId`; a redeploy rotates it), and
-its business's `mcpUrl`/`whatsappFrom` as `MCP_URL`/`WHATSAPP_FROM` (left out when empty).
-Every onboarding checklist starts with `assigned`, `meeting`, `subscribed`, `mcp`; the hub keeps
-`assigned` and `subscribed` in step ([src/services/checklist.py](src/services/checklist.py)).
+deletes a role someone holds (409). Nothing here deploys soneeva-voice: `checkout.session.completed`
+for `soneeva` writes that business's voice env to Secret Manager as `voice-{businessId}` (its own
+`soneeva-voice` key, named on `businesses/{id}.voiceKeyId`; only the public half stays here), and its
+first number adds the Twilio subaccount ([src/services/voice.py](src/services/voice.py)). A developer
+deploys the voice by hand with that secret mounted (plus `MCP_URL`, `WHATSAPP_FROM` of their own) and a
+platform person holding `Voice.Url.Write` saves its URL (`PATCH /v1/businesses/{id}` `voiceUrl`: it must
+answer `/health`; every number is pointed at it). The voice follows its settings, menus and recordings
+in the business's data itself. `Voice.Sandbox` opens a business's sandbox twin (`POST …/sandbox`; a test
+business of its own, never listed) and rotates its key (`POST …/sandbox/key`: a local `.env`, shown once).
+Every onboarding checklist starts with `assigned`, `meeting`, `subscribed`, `mcp`, `deployment`; the hub
+keeps `assigned` and `subscribed` in step, the serviceperson ticks `meeting` and `deployment`
+(`POST …/checklist/{item}`, [src/services/checklist.py](src/services/checklist.py)).
 Decisions: [settings.json](settings.json), explained in [SETTINGS.md](SETTINGS.md). Rollout:
 [ROLLOUT.md](ROLLOUT.md). Local end to end: [scripts/e2e.md](scripts/e2e.md).
 
@@ -243,9 +248,9 @@ src/
   auth/              auth — Firebase Auth admin: base.py, firebase.py, password.py, fake.py, exported as Accounts
   storage/           storage — the private bucket: base.py, firebase.py, fake.py, exported as Storage
   payment/           payment — base.py, fake.py, stripe/ (gateway.py, catalog.py, parse.py), exported as Payment
-  deploy/            Voice deployments: local.py (uvicorn), cloudrun.py, fake.py
+  vault/             Secret Manager (voice env per business): gcp.py, fake.py
   numbers/           Phone numbers: twilio.py (REST via httpx), fake.py
-  remote/            Unsigned readiness check of a fresh voice deployment: restapi.py, fake.py
+  remote/            Unsigned readiness check of a voice URL before it is saved: restapi.py, fake.py
   services/          Business logic over a Database; unchanged when a provider changes
     errors.py        AdminError (operator refusals) and PlatformError (/v1 refusals)
     admin.py         Apps, keys, payment people and roles
@@ -254,14 +259,15 @@ src/
     billing.py       All billing rules; tenant → Stripe customer and subscription, briefly cached
     coupons.py       Promotion codes with discount terms (models/discount.py)
     roles.py         Role to scopes, cached
-    webhook.py       Stripe events: drop caches, then side effects (checklist, voice deploy)
+    webhook.py       Stripe events: drop caches, then side effects (checklist, voice env)
     plans.py         Plans as Stripe products and prices, one cache for the account, the public list
     ttl.py           The per-instance expiring cache behind plans, tenants and event dedupe
     businesses.py    Sign-up: owner account + pending business row, idempotent per owner/email
     provision.py     Background provisioning of b-{id} (database, indexes, seed rows, claims; done once
                      the indexes are built)
     callers.py       Caller names, tags and blocks in b-{id}/callers
-    voice.py         soneeva-voice env, deploys and restarts
+    voice.py         soneeva-voice env in Secret Manager, its URL and the numbers pointed at it
+    sandbox.py       A business's sandbox twin and its rotating local key
     usage.py         Call seconds straight to the Stripe meter (identifier = callId)
     phone_numbers.py Twilio numbers, gated on a plan
     customers.py     Per-business Stripe detail for /v1/payment/businesses

@@ -21,7 +21,7 @@ def _person(services, uid: str, role: str) -> None:
 def test_every_checklist_starts_with_the_onboarding_items(services):
     items = _items(services, business(services))
     ordered = sorted(items, key=lambda i: items[i]["order"])
-    assert ordered[:5] == ["assigned", "meeting", "subscribed", "mcp", "profile"]
+    assert ordered[:6] == ["assigned", "meeting", "subscribed", "mcp", "deployment", "profile"]
     assert items["meeting"]["label"] == "Meeting with the serviceperson"
     assert all(i["state"] == "open" for i in items.values())
 
@@ -98,3 +98,13 @@ def test_reading_the_checklist(client, bearer, services):
     staff = services.business_dbs[f"b-{biz}"]
     staff.rows[("users", "st1")] = {"role": "staff"}
     assert client.get(url, headers=bearer("soneeva", view, sub=biz, uid="st1")).status_code == 403
+
+
+def test_provisioning_again_adds_new_items_and_keeps_progress(services):
+    biz = business(services)
+    bdb = services.business_dbs[f"b-{biz}"]
+    del bdb.rows[("checklist", "deployment")]  # made before the item existed
+    bdb.rows[("checklist", "meeting")]["state"] = "done"
+    asyncio.run(services.businesses.provisioner.run(biz))
+    assert bdb.rows[("checklist", "deployment")]["state"] == "open"
+    assert bdb.rows[("checklist", "meeting")]["state"] == "done"

@@ -59,17 +59,21 @@ class ChecklistService:
         """Called for every saved subscription; a store that is no business is skipped."""
         await self.set_state(business_id, "subscribed", active)
 
-    async def tick_meeting(self, caller: Caller, business: Business, done: bool) -> dict[str, Any]:
-        """The assigned serviceperson, or a platform person holding Businesses.Write."""
+    async def tick_staff_item(self, caller: Caller, business: Business, item: str,
+                              done: bool) -> dict[str, Any]:
+        """One of `businesses.staffItems`, by the assigned serviceperson or a platform person holding
+        Businesses.Write."""
+        if item not in tunable("businesses.staffItems"):
+            raise PlatformError(f"'{item}' is not ticked by staff", 404)
         assigned = caller.assigned_to(business)
         write = caller.person_scopes is not None and holds(caller.person_scopes, "Businesses.Write")
         if caller.business_id or not (assigned or write):
             raise PlatformError("Only the assigned serviceperson or Businesses.Write", 403)
         bdb = business_db(self._db, business.id, business.dbId)
-        if not await bdb.get_row(BusinessDb.CHECKLIST, MEETING):
-            raise PlatformError("This business has no meeting item", 409)
-        await self.set_state(business.id, MEETING, done, caller.uid or caller.app_id)
-        return {"id": MEETING, "state": "done" if done else "open"}
+        if not await bdb.get_row(BusinessDb.CHECKLIST, item):
+            raise PlatformError(f"This business has no {item} item", 409)
+        await self.set_state(business.id, item, done, caller.uid or caller.app_id)
+        return {"id": item, "state": "done" if done else "open"}
 
     async def items(self, business: Business) -> list[dict[str, Any]]:
         """In order, as `{id, label, state, by, at}` (`at` ISO or null)."""

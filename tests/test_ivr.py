@@ -46,15 +46,13 @@ def menu(**over) -> dict:
     return {"direct": False, "greeting": "opening", "options": options} | over
 
 
-def test_a_recording_is_saved_pending_archived_on_change_and_restarts_the_voice(biz, call, services):
+def test_a_recording_is_saved_pending_and_archived_on_change(biz, call, services):
     url = f"/v1/businesses/{biz}/audios/opening"
     saved = call("PUT", url, "owner1", biz, json={"text": "Welcome."})
     assert saved.status_code == 200, saved.text
     first = saved.json()
-    assert (first["status"], first["version"], first["restarting"]) == ("pending", 1, True)
-    deployed = len(services.voice._deployer.deployed)
-    assert call("PUT", url, "owner1", biz, json={"text": "Welcome."}).json()["restarting"] is False
-    assert len(services.voice._deployer.deployed) == deployed  # nothing changed, nothing restarts
+    assert (first["status"], first["version"]) == ("pending", 1)
+    assert call("PUT", url, "owner1", biz, json={"text": "Welcome."}).json()["version"] == 1  # unchanged
 
     asyncio.run(services.storage.put(f"businesses/{biz}/audios/opening/active", WAV, "audio/wav"))
     again = call("PUT", url, "owner1", biz, json={"text": "Hello again.", "language": "nl"}).json()
@@ -80,7 +78,7 @@ def test_a_number_menu_is_checked_before_it_is_saved(biz, call, services):
     assert call("PUT", f"/v1/businesses/{biz}/ivr/numbers/%2B31209999999", "owner1", biz,
                 json=menu()).status_code == 404
     saved = call("PUT", url, "owner1", biz, json=menu())
-    assert saved.status_code == 200 and saved.json()["restarting"] is True
+    assert saved.status_code == 200
     assert saved.json()["config"]["options"][2]["human"]["ringSeconds"] == 20
     listed = call("GET", f"/v1/businesses/{biz}/ivr/numbers", "clerk", biz).json()["numbers"]
     assert [(n["phoneNumber"], n["configured"]) for n in listed] == [(LINE, True), (OTHER, False)]

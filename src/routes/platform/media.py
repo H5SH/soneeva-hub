@@ -2,9 +2,9 @@
 
 from email.utils import format_datetime
 
-from fastapi import APIRouter, BackgroundTasks, Request, Response
+from fastapi import APIRouter, Request, Response
 
-from src.dependencies import BusinessDep, IvrDep, MediaDep, StorageDep, VoiceDep
+from src.dependencies import BusinessDep, IvrDep, MediaDep, StorageDep
 from src.models.admin import Scope
 from src.models.people import Actor
 from src.services.errors import PlatformError
@@ -87,8 +87,7 @@ async def put_media(
 @router.delete("/{path:path}")
 async def delete_media(
     path: str, request: Request, rules: MediaDep, files: StorageDep, businesses: BusinessDep,
-    ivr: IvrDep, voice: VoiceDep, tasks: BackgroundTasks,
-    actor: Actor = requires_actor(Scope.HUB_MEDIA_UPDATE),
+    ivr: IvrDep, actor: Actor = requires_actor(Scope.HUB_MEDIA_UPDATE),
 ) -> dict:
     """A recording goes through its own rules: an old version, or the whole thing while unused."""
     await check(rules, await _who(request, actor), path, edit=True)
@@ -102,6 +101,4 @@ async def delete_media(
         await ivr.delete_version(business, name, version)
     else:
         await ivr.delete_audio(business, name)
-        if business.voiceUrl:
-            tasks.add_task(voice.deploy_quietly, business.id)
     return {"deleted": True}

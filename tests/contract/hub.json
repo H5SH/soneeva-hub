@@ -21,8 +21,6 @@
       }
     ],
     "voiceUrl": "https://voice-pizzaroma1.example",
-    "mcpUrl": "https://mcp.pizzaroma.example/mcp",
-    "whatsappFrom": "whatsapp:+31201112222",
     "plan": {
       "code": "per-minute",
       "status": "active",
@@ -40,11 +38,12 @@
     "email": "roma@example.com",
     "twilioAccountSid": "AC1",
     "consentAt": "2026-10-01T11:00:00.000Z",
-    "createdAt": "2026-10-01T11:00:00Z"
+    "createdAt": "2026-10-01T11:00:00Z",
+    "sandboxOf": null,
+    "sandboxId": null
   },
-  "agentConnectionPatch": {
-    "mcpUrl": "https://mcp.pizzaroma.example/mcp",
-    "whatsappFrom": "whatsapp:+31201112222"
+  "voiceUrlPatch": {
+    "voiceUrl": "https://voice-pizzaroma1.example"
   },
   "businessPatched": {
     "id": "pizzaroma1",
@@ -67,8 +66,6 @@
       }
     ],
     "voiceUrl": "https://voice-pizzaroma1.example",
-    "mcpUrl": "https://mcp.pizzaroma.example/mcp",
-    "whatsappFrom": "whatsapp:+31201112222",
     "plan": {
       "code": "per-minute",
       "status": "active",
@@ -87,7 +84,8 @@
     "twilioAccountSid": "AC1",
     "consentAt": "2026-10-01T11:00:00.000Z",
     "createdAt": "2026-10-01T11:00:00Z",
-    "redeploying": true
+    "sandboxOf": null,
+    "sandboxId": null
   },
   "checklistMeeting": {
     "done": true
@@ -95,6 +93,11 @@
   "checklistMeetingDone": {
     "id": "meeting",
     "state": "done"
+  },
+  "sandboxKey": {
+    "businessId": "sbxpizza01",
+    "keyId": "sub-sbxpizza01",
+    "env": "BUSINESS_ID=\"sbxpizza01\"\nFIRESTORE_DATABASE=\"\"\nHUB_APP_ID=\"soneeva-voice\"\n"
   },
   "checklist": {
     "items": [
@@ -142,15 +145,6 @@
     "features": [],
     "status": "active",
     "icon": "https://files.stripe.com/links/MDB8YWNjdF8x"
-  },
-  "voiceSettings": {
-    "language": "nl",
-    "voice": "nl-NL-Chirp3-HD-Kore"
-  },
-  "voiceSaved": {
-    "saved": true,
-    "restarting": true,
-    "warning": "The voice service restarts; calls in progress are dropped."
   },
   "signup": {
     "appId": "soneeva",
@@ -1016,7 +1010,7 @@
           "type": "restaurant",
           "appId": "soneeva",
           "dbId": "b-pizzaroma1",
-    "dataLocation": "europe-west3",
+          "dataLocation": "europe-west3",
           "ownerUid": "owner1",
           "status": "running",
           "configured": true,
@@ -1031,8 +1025,6 @@
             }
           ],
           "voiceUrl": "https://voice-pizzaroma1.example",
-          "mcpUrl": "https://mcp.pizzaroma.example/mcp",
-          "whatsappFrom": "whatsapp:+31201112222",
           "plan": {
             "code": "per-minute",
             "status": "active",
@@ -1050,7 +1042,9 @@
           "email": "roma@example.com",
           "twilioAccountSid": "AC1",
           "consentAt": "2026-10-01T11:00:00.000Z",
-          "createdAt": "2026-10-01T11:00:00Z"
+          "createdAt": "2026-10-01T11:00:00Z",
+          "sandboxOf": null,
+          "sandboxId": null
         },
         "subscription": {
           "status": "active",
@@ -1080,7 +1074,7 @@
       "type": "restaurant",
       "appId": "soneeva",
       "dbId": "b-pizzaroma1",
-    "dataLocation": "europe-west3",
+      "dataLocation": "europe-west3",
       "ownerUid": "owner1",
       "status": "running",
       "configured": true,
@@ -1095,8 +1089,6 @@
         }
       ],
       "voiceUrl": "https://voice-pizzaroma1.example",
-      "mcpUrl": "https://mcp.pizzaroma.example/mcp",
-      "whatsappFrom": "whatsapp:+31201112222",
       "plan": {
         "code": "per-minute",
         "status": "active",
@@ -1114,7 +1106,9 @@
       "email": "roma@example.com",
       "twilioAccountSid": "AC1",
       "consentAt": "2026-10-01T11:00:00.000Z",
-      "createdAt": "2026-10-01T11:00:00Z"
+      "createdAt": "2026-10-01T11:00:00Z",
+      "sandboxOf": null,
+      "sandboxId": null
     },
     "subscription": {
       "status": "active",
@@ -1385,8 +1379,7 @@
           }
         }
       ]
-    },
-    "restarting": true
+    }
   },
   "audios": {
     "audios": [
@@ -1451,12 +1444,10 @@
     ],
     "usedBy": [
       "+31201112222"
-    ],
-    "restarting": true
+    ]
   },
   "audioDeleted": {
-    "deleted": true,
-    "restarting": false
+    "deleted": true
   },
   "callers": {
     "callers": [

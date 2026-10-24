@@ -1,24 +1,23 @@
 from fastapi import APIRouter, BackgroundTasks, Query
 
-from src.dependencies import BusinessDep, IvrDep, NumbersDep, PeopleDep, VoiceDep
+from src.dependencies import BusinessDep, IvrDep, NumbersDep, PeopleDep, SandboxDep, VoiceDep
 from src.models.admin import Scope
 from src.models.platform import (
-    AGENT_CONNECTION,
     BusinessCreate,
     BusinessPatch,
     Caller,
     ChecklistTick,
     NumberPurchase,
-    VoiceSettings,
 )
 from src.services.errors import PlatformError
 from src.services.people.access import business_scopes
-from src.services.people.rules import CANNOT_READ, reads_business
+from src.services.people.rules import CANNOT_READ, holds, reads_business
 from src.services.tokens.caller import requires_caller
 
 router = APIRouter(prefix="/v1", tags=["platform"])
 CONTACT = {"uid", "name", "phone", "email"}
 CHECKLIST_READ = ("checklist.view", "checklist.edit", "checklist.approve")
+VOICE_URL = "Voice.Url.Write"
 
 
 @router.post("/businesses", status_code=201)
@@ -109,26 +108,50 @@ async def get_checklist(
 @router.patch("/businesses/{business_id}")
 async def patch_business(
     business_id: str, body: BusinessPatch, businesses: BusinessDep, voice: VoiceDep,
-    tasks: BackgroundTasks, caller: Caller = requires_caller(Scope.HUB_BUSINESS_UPDATE),
-) -> dict:
-    """A changed agent connection redeploys this business's voice, if it has one."""
-    before = await businesses.require(caller, business_id)
-    after = await businesses.with_plan(await businesses.patch(caller, business_id, body))
-    changed = any(getattr(before, f) != getattr(after, f) for f in AGENT_CONNECTION)
-    redeploying = changed and bool(after.voiceUrl)
-    if redeploying:
-        tasks.add_task(voice.deploy_quietly, business_id)
-    return after.model_dump(mode="json") | {"redeploying": redeploying}
-
-
-@router.post("/businesses/{business_id}/checklist/meeting")
-async def tick_meeting(
-    business_id: str, body: ChecklistTick, businesses: BusinessDep,
     caller: Caller = requires_caller(Scope.HUB_BUSINESS_UPDATE),
 ) -> dict:
-    """The assigned serviceperson (or Businesses.Write) records the meeting as held."""
+    """`voiceUrl` (a platform person holding Voice.Url.Write) must answer /health; the business's
+    numbers are pointed at it."""
+    fields = body.model_dump(exclude_unset=True)
+    url = fields.pop("voiceUrl", None)
+    if url is not None:
+        business = await businesses.require(caller, business_id)
+        if caller.business_id or not holds(caller.person_scopes or [], VOICE_URL):
+            raise PlatformError(f"Requires {VOICE_URL}", 403)
+        await voice.set_url(business, url, caller.uid or caller.app_id)
+    after = await businesses.patch(caller, business_id, BusinessPatch(**fields))
+    return (await businesses.with_plan(after)).model_dump(mode="json")
+
+
+@router.post("/businesses/{business_id}/checklist/{item}")
+async def tick_staff_item(
+    business_id: str, item: str, body: ChecklistTick, businesses: BusinessDep,
+    caller: Caller = requires_caller(Scope.HUB_BUSINESS_UPDATE),
+) -> dict:
+    """The assigned serviceperson (or Businesses.Write) ticks one of `businesses.staffItems`: the
+    meeting held, the voice deployed."""
     business = await businesses.require(caller, business_id)
-    return await businesses.checklist.tick_meeting(caller, business, body.done)
+    return await businesses.checklist.tick_staff_item(caller, business, item, body.done)
+
+
+@router.post("/businesses/{business_id}/sandbox")
+async def open_sandbox(
+    business_id: str, businesses: BusinessDep, sandbox: SandboxDep,
+    caller: Caller = requires_caller(Scope.HUB_BUSINESS_UPDATE),
+) -> dict:
+    """The business's sandbox twin (made on first use): a test business of its own, never listed."""
+    business = await businesses.require(caller, business_id)
+    return (await sandbox.twin(caller, business)).model_dump(mode="json")
+
+
+@router.post("/businesses/{business_id}/sandbox/key")
+async def rotate_sandbox_key(
+    business_id: str, businesses: BusinessDep, sandbox: SandboxDep,
+    caller: Caller = requires_caller(Scope.HUB_BUSINESS_UPDATE),
+) -> dict:
+    """A new voice key for the sandbox twin, shown this once as a local `.env`; the previous one stops."""
+    business = await businesses.require(caller, business_id)
+    return await sandbox.rotate_key(caller, business)
 
 
 @router.get("/servicepersons")
@@ -145,19 +168,6 @@ async def list_servicepersons(
     return {"servicepersons": [p.model_dump(include=CONTACT) for p in found if p.active]}
 
 
-@router.post("/businesses/{business_id}/voice/settings")
-async def voice_settings(
-    business_id: str, body: VoiceSettings, businesses: BusinessDep, voice: VoiceDep,
-    tasks: BackgroundTasks, caller: Caller = requires_caller(Scope.HUB_VOICE_UPDATE),
-) -> dict:
-    business = await businesses.require(caller, business_id)
-    result = await voice.save_settings(business, body)
-    if result["restarting"]:
-        tasks.add_task(voice.deploy_quietly, business_id)
-        result["warning"] = "The voice service restarts; calls in progress are dropped."
-    return result
-
-
 @router.get("/businesses/{business_id}/numbers")
 async def search_numbers(
     business_id: str, businesses: BusinessDep, numbers: NumbersDep,
@@ -172,11 +182,10 @@ async def search_numbers(
 @router.post("/businesses/{business_id}/numbers", status_code=201)
 async def buy_number(
     business_id: str, body: NumberPurchase, businesses: BusinessDep, numbers: NumbersDep, ivr: IvrDep,
-    voice: VoiceDep, tasks: BackgroundTasks, caller: Caller = requires_caller(Scope.HUB_NUMBER_BUY),
+    caller: Caller = requires_caller(Scope.HUB_NUMBER_BUY),
 ) -> dict:
-    """The new number gets a default call menu (straight to the agent), so the voice restarts."""
+    """The new number gets a default call menu (straight to the agent), which the voice picks up."""
     business = await businesses.require(caller, business_id)
-    number, _ = await numbers.buy(business, body.phoneNumber, caller.uid or caller.app_id)
+    number = await numbers.buy(business, body.phoneNumber, caller.uid or caller.app_id)
     await ivr.default_number(business, number.phoneNumber)
-    tasks.add_task(voice.deploy_quietly, business_id)
     return number.model_dump()

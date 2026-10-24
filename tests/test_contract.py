@@ -57,10 +57,6 @@ def test_people_numbers_plans_and_voice(live, client):
     numbers = client.get(f"/v1/businesses/{biz}/numbers?country=NL", headers=headers(biz)).json()
     same_keys(numbers["numbers"][0], FIXTURE["number"])
     same_keys(client.get("/v1/public/plans?app=soneeva").json()["plans"][0], FIXTURE["plan"])
-    saved = client.post(
-        f"/v1/businesses/{biz}/voice/settings", json=FIXTURE["voiceSettings"], headers=headers(biz)
-    ).json()
-    same_keys(saved, FIXTURE["voiceSaved"])
 
 
 def test_home_shape(client, bearer, services):

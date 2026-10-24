@@ -41,7 +41,8 @@ class Provisioner:
 
     async def run(self, business_id: str) -> Business:
         """Provisions the business unless it is already running here; raises on failure. A provisioned
-        one only gets its indexes ensured (cheap once built), e.g. one made before an index was added."""
+        one only gets its indexes ensured (cheap once built) and checklist items added since (insert
+        only: what moved stays), e.g. one made before an index or an item was added."""
         row = await self._db.get_row(Default.BUSINESSES, business_id)
         if not row:
             raise PlatformError("No such business", 404)
@@ -52,6 +53,7 @@ class Provisioner:
         try:
             if business.provisioned:
                 await self._indexes(business)
+                await self._checklist.seed(business_db(self._db, business.id, business.dbId), business.type)
             else:
                 await self._build(business, row.get("signup") or {})
         except Exception as error:
@@ -98,8 +100,10 @@ class Provisioner:
             bdb.create_row(BusinessDb.SETTINGS, CONSOLE_SETTINGS,
                            {"language": (business.languages or ["en"])[0]}),
         )
-        username = signup.get("username") or owner.username or owner.email.split("@")[0] or owner.uid
-        await self._accounts.set_claims(business.ownerUid, {"businessId": business.id, "username": username})
+        if not business.sandboxOf:  # the owner signs in to the live business, never to its twin
+            username = signup.get("username") or owner.username or owner.email.split("@")[0] or owner.uid
+            claims = {"businessId": business.id, "username": username}
+            await self._accounts.set_claims(business.ownerUid, claims)
         await self._indexes(business)
 
     async def _database(self, business: Business) -> None:

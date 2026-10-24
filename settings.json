@@ -140,7 +140,7 @@
     {"group": "tools", "twins": false, "scopes": ["Tools.Write"]},
     {"group": "advertisements", "twins": false, "scopes": ["Advertise.View", "Advertise.Write"]},
     {"group": "voice", "twins": false, "scopes": ["Voice.Url.Write", "Voice.Sandbox"]},
-    {"group": "demo", "twins": false, "scopes": ["Ivr.View", "Demo.Settings"]}
+    {"group": "demo", "twins": false, "scopes": ["Ivr.View", "Soneeva.Number.Write", "Demo.Number.Write", "Demo.Page.Write", "Demo.Config.Write"]}
   ],
   "advertisements": {"backgrounds": ["ink", "teal", "sand", "mint", "coral", "image"], "maxBusinesses": 500},
   "platformRoles": {

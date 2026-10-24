@@ -63,7 +63,9 @@ def to_call(call_id: str, caller: str, d: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": call_id,
         "uid": _str(d.get("caller_id")) or caller,
-        "agent": _str(d.get("mode"), "—"),
+        #: The phone line (`soneeva` or `demo`) and the agent step that took the call.
+        "line": _str(d.get("line")),
+        "step": _str(d.get("step"), "—"),
         "engine": _str(d.get("engine"), "smart"),
         "status": _str(d.get("status"), "in_progress"),
         "startedAt": iso(d.get("started_at")),

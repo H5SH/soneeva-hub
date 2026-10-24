@@ -76,8 +76,9 @@ Collection = Default | BusinessDb
 #: settings/{id} in a business database.
 AGENT_SETTINGS = "agent"
 CONSOLE_SETTINGS = "console"
-#: demo/{id} in `(default)`.
+#: demo/{id} in `(default)`: the settings, and each section's previous version and who saved it.
 DEMO_SETTINGS = "settings"
+DEMO_HISTORY = "history"
 
 
 # ── doc ids ─────────────────────────────────────────────────────────────────

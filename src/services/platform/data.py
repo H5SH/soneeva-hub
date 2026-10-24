@@ -1,4 +1,4 @@
-"""A console's scope catalogue and the browser demo's calls."""
+"""A console's scope catalogue and the phone demo's calls."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -7,17 +7,13 @@ from src.db import Database
 from src.models.db import Default
 from src.models.people import Actor
 from src.services.people.rules import Refused, reach
-from src.services.people.store import People
 from src.services.platform.calls import RANGE_CAP, CallRange, CallService, by_day
 from src.tunables import tunable
 
-WEB = "web-"
-
 
 class PlatformData:
-    def __init__(self, db: Database, people: People) -> None:
+    def __init__(self, db: Database) -> None:
         self._db = db
-        self._people = people
         self._calls = CallService(db)
 
     async def scopes(self, app_id: str) -> list[dict[str, Any]]:
@@ -26,17 +22,14 @@ class PlatformData:
 
     # ── demo calls ──────────────────────────────────────────────────────────
     async def _callers(self, actor: Actor, scope: str, asked: list[str] | None) -> list[str] | None:
-        """Who's calls this person may read through `scope`: None is everyone."""
+        """Whose calls this person may read through `scope`: None is everyone. The callers are phone
+        numbers, nobody's own, so only an unrestricted reach sees any."""
         if scope not in tunable("people.callScopes"):
             raise Refused(f"{scope} does not read calls", 422)
         r = reach(actor.scopes, scope) if actor.platform else None
         if r is None:
             raise Refused(f"Requires {scope}")
-        if r == "all":
-            return asked
-        mine = {actor.uid} | {user for sp, user in await self._people.assignments() if sp == actor.uid}
-        allowed = [f"{WEB}{uid}" for uid in sorted(mine)]
-        return allowed if asked is None else [c for c in asked if c in allowed]
+        return asked if r == "all" else []
 
     async def calls(self, actor: Actor, scope: str, caller: str | None, span: CallRange,
                     limit: int, engine: str | None = None) -> dict[str, Any]:

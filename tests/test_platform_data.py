@@ -21,7 +21,7 @@ SIGNUP = {
 @pytest.fixture
 def platform(services):
     people(services)
-    for n, caller in enumerate(["web-u1", "web-u2", "+31600000000"]):
+    for n, caller in enumerate(["+31600000001", "+31600000002", "+31600000000"]):
         services.db.rows[(f"callers/{caller}/calls", f"c{n}")] = {
             "caller_id": caller,
             "started_at": datetime(2026, 10, n + 1, tzinfo=UTC),
@@ -30,8 +30,11 @@ def platform(services):
         }
     for message in ({"index": 0, "role": "user", "content": "hi"},
                     {"index": 1, "role": "assistant", "content": "hello"}):
-        services.db.rows[("callers/web-u1/calls/c0/messages", str(message["index"]))] = message
+        services.db.rows[("callers/+31600000001/calls/c0/messages", str(message["index"]))] = message
     return services
+
+
+CALL = "/v1/platform/calls/+31600000001"
 
 
 def test_calls_follow_the_scope_reach(platform, client, bearer):
@@ -42,30 +45,30 @@ def test_calls_follow_the_scope_reach(platform, client, bearer):
     )
     assert [c["id"] for c in rest.json()["calls"]] == ["c0"]
     mine = client.get("/v1/platform/calls?scope=Chats.View", headers=as_(bearer, "sp")).json()
-    assert [c["uid"] for c in mine["calls"]] == ["web-u1"]
-    other = client.get("/v1/platform/calls?scope=Chats.View&caller=web-u2", headers=as_(bearer, "sp")).json()
-    assert other["calls"] == []
+    assert mine["calls"] == []  # callers are phone numbers: only an unrestricted reach sees them
     assert client.get("/v1/platform/calls?scope=Roles.Write", headers=as_(bearer, "admin")).status_code == 422
     assert client.get("/v1/platform/calls?scope=Chats.View", headers=as_(bearer, "u1")).status_code == 403
 
 
 def test_one_call_its_messages_and_totals(platform, client, bearer):
-    call = client.get("/v1/platform/calls/web-u1/c0?scope=Chats.View", headers=as_(bearer, "sp")).json()
+    call = client.get(f"{CALL}/c0?scope=Chats.View", headers=as_(bearer, "admin")).json()
     assert call["startedAt"] == "2026-10-01T00:00:00.000Z" and call["cost"]["total"] == 0.5
     later = client.get(
-        "/v1/platform/calls/web-u1/c0/messages?scope=Chats.View&after=0", headers=as_(bearer, "sp")
+        "/v1/platform/calls/+31600000001/c0/messages?scope=Chats.View&after=0", headers=as_(bearer, "admin")
     )
     assert [m["content"] for m in later.json()["messages"]] == ["hello"]
     assert (
-        client.get("/v1/platform/calls/web-u2/c1?scope=Chats.View", headers=as_(bearer, "sp")).status_code
+        client.get("/v1/platform/calls/+31600000002/c1?scope=Chats.View", headers=as_(bearer, "sp"))
+        .status_code
         == 404
     )
     totals = client.get("/v1/platform/calls/totals?scope=Chats.View", headers=as_(bearer, "admin")).json()
     assert totals == {"calls": 3, "messages": 6, "cost": 1.5}
     some = client.get(
-        "/v1/platform/calls/totals?scope=Chats.View&callers=web-u1,web-u2", headers=as_(bearer, "sp")
+        "/v1/platform/calls/totals?scope=Chats.View&callers=%2B31600000001,%2B31600000002",
+        headers=as_(bearer, "sp"),
     )
-    assert some.json()["calls"] == 1
+    assert some.json()["calls"] == 0
 
 
 def test_the_scope_catalogue(platform, client, bearer, services):
@@ -100,7 +103,7 @@ def test_signup_creates_the_owner_and_rolls_back_on_failure(platform, client, be
 
 
 def test_calls_per_day_split_the_cost_and_fill_gaps(platform, client, bearer):
-    platform.db.rows[("callers/web-u1/calls", "c0")] |= {
+    platform.db.rows[("callers/+31600000001/calls", "c0")] |= {
         "duration_seconds": 90, "cost": {"llm": 0.1, "stt": 0.1, "tts": 0.2, "carrier": 0.1, "total": 0.5}}
     url = "/v1/platform/calls/daily?scope=Chats.View&from=2026-09-30T00:00:00Z&to=2026-10-03T23:59:59Z"
     days = client.get(url, headers=as_(bearer, "admin")).json()["days"]
@@ -109,13 +112,13 @@ def test_calls_per_day_split_the_cost_and_fill_gaps(platform, client, bearer):
     assert days[1] == {"day": "2026-10-01", "calls": 1, "minutes": 1.5, "llm": 0.1, "stt": 0.1, "tts": 0.2,
                        "live": 0.0, "telephony": 0.1, "total": 0.5}
     mine = client.get(url, headers=as_(bearer, "sp")).json()["days"]
-    assert sum(d["calls"] for d in mine) == 1  # sp looks after u1 only
-    call = client.get("/v1/platform/calls/web-u1/c0?scope=Chats.View", headers=as_(bearer, "admin")).json()
+    assert sum(d["calls"] for d in mine) == 0  # an assigned reach sees no phone callers
+    call = client.get(f"{CALL}/c0?scope=Chats.View", headers=as_(bearer, "admin")).json()
     assert call["cost"]["telephony"] == 0.1 and call["engine"] == "smart"  # before Spark: Smart
 
 
 def test_spark_calls_cost_live_and_filter_by_engine(platform, client, bearer):
-    platform.db.rows[("callers/web-u1/calls", "c0")] |= {
+    platform.db.rows[("callers/+31600000001/calls", "c0")] |= {
         "engine": "spark", "duration_seconds": 60, "cost": {"live": 0.02, "carrier": 0.01, "total": 0.03}}
     url = "/v1/platform/calls/daily?scope=Chats.View&from=2026-09-30T00:00:00Z&to=2026-10-03T23:59:59Z"
     spark = client.get(url + "&engine=spark", headers=as_(bearer, "admin")).json()["days"]

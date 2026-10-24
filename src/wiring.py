@@ -105,7 +105,7 @@ def assemble(
     businesses = BusinessService(db, accounts, billing, identity)
     usage = UsageService(payment, billing, businesses)
     ads = AdvertisementService(db, businesses)
-    people_service, platform_data = PeopleService(accounts, people), PlatformData(db, people)
+    people_service, platform_data = PeopleService(accounts, people), PlatformData(db)
     hub_url, project = (settings.service_base_url, project_id()) if settings else ("", "")
     voice = VoiceService(db, businesses, tools, vault, numbers, remote, hub_url, project)
     webhooks = payment.map(lambda gateway, mode: WebhookService(

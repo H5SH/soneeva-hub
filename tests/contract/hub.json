@@ -396,7 +396,8 @@
   "call": {
     "id": "c0",
     "uid": "web-u1",
-    "agent": "—",
+    "line": "demo",
+    "step": "Pizza demo",
     "engine": "smart",
     "status": "completed",
     "startedAt": "2026-10-01T00:00:00.000Z",
@@ -432,7 +433,8 @@
       {
         "id": "c0",
         "uid": "web-u1",
-        "agent": "—",
+        "line": "demo",
+        "step": "Pizza demo",
         "engine": "smart",
         "status": "completed",
         "startedAt": "2026-10-01T00:00:00.000Z",

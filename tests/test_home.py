@@ -64,7 +64,7 @@ def test_the_assigned_twins_reach_only_the_people_looked_after(seeded, client, b
     services.db.rows[("assignments", "u2_u1")] = {"servicepersonUid": "u2", "userUid": "u1"}
     seen = home(client, bearer, "u2").json()
     assert seen["people"]["total"] == 1 and seen["people"]["reach"] == "assigned"
-    assert sum(d["calls"] for d in seen["demo"]["days"]) == 1
+    assert sum(d["calls"] for d in seen["demo"]["days"]) == 0  # demo callers are phone numbers, nobody's own
 
 
 def test_the_app_scopes_and_a_person_are_needed(seeded, client, bearer):

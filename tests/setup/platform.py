@@ -62,6 +62,7 @@ def home_data(services) -> str:
     ads = services.advertisements
     ad = asyncio.run(ads.create(AdFields(title="Summer"), "admin"))
     asyncio.run(ads.publish(Caller(app_id="karbon-admin", sub="-"), ad["id"], [mine, "other"]))
-    rows[("callers/web-u1/calls", "c0")] = {"caller_id": "web-u1", "started_at": datetime.now(UTC),
-                                            "duration_seconds": 120}
+    caller = "+31600000001"
+    rows[(f"callers/{caller}/calls", "c0")] = {"caller_id": caller, "started_at": datetime.now(UTC),
+                                               "duration_seconds": 120}
     return mine

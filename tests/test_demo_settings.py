@@ -31,7 +31,7 @@ def test_each_tab_needs_its_own_scope_and_reading_needs_any(client, bearer, serv
     sales = staff(services, bearer, "sales2", ["Demo.Number.Write"])
     other = staff(services, bearer, "other", ["Businesses.View"])
     assert client.get(URL, headers=viewer()).json()["settings"] == STORED
-    assert client.get(URL, headers=sales()).status_code == 200
+    assert list(client.get(URL, headers=sales()).json()["settings"]) == ["demoNumber"]  # its own tab
     assert client.get(URL, headers=other()).status_code == 403
     demo = STORED["demoNumber"] | {"mode": "ivr"}
     assert client.put(f"{URL}/demoNumber", json=demo, headers=viewer()).status_code == 403

@@ -1,5 +1,6 @@
-"""/v1/demo/settings: the phone demo's settings, saved tab by tab, each by its own scope (SECTION_SCOPES);
-Ivr.View or any of those reads them. `demo/history` keeps each section's previous version and who saved it,
+"""/v1/demo/settings: the phone demo's settings, saved tab by tab, each by its own scope (SECTION_SCOPES).
+Ivr.View reads every tab; otherwise a person gets only the tabs they may save. `demo/history` keeps each
+section's previous version and who saved it,
 so a save can be reverted. The demo service follows `demo/settings` live and has no defaults."""
 
 from datetime import UTC, datetime
@@ -36,11 +37,18 @@ async def _read(request: Request) -> tuple[dict[str, Any], dict[str, Any]]:
     return settings.model_dump(), await db.get_row(Default.DEMO, DEMO_HISTORY) or {}
 
 
-def _shown(settings: dict[str, Any], history: dict[str, Any]) -> dict[str, Any]:
-    """The settings, and per section who saved it last and whether there is a version to go back to."""
+def _sections(actor: Actor) -> list[str]:
+    """The tabs this person sees: every one with Ivr.View, else those they may save."""
+    every = holds(actor.scopes, VIEW)
+    return [s for s, scope in SECTION_SCOPES.items() if every or holds(actor.scopes, scope)]
+
+
+def _shown(actor: Actor, settings: dict[str, Any], history: dict[str, Any]) -> dict[str, Any]:
+    """The visible sections, and per section who saved it last and whether it can be reverted."""
+    shown = _sections(actor)
     saved = {s: {"by": (history.get(s) or {}).get("by"), "at": (history.get(s) or {}).get("at"),
-                 "revertible": bool((history.get(s) or {}).get("previous"))} for s in SECTION_MODELS}
-    return {"settings": settings, "saved": saved}
+                 "revertible": bool((history.get(s) or {}).get("previous"))} for s in shown}
+    return {"settings": {s: settings[s] for s in shown}, "saved": saved}
 
 
 async def _save(request: Request, actor: Actor, section: str, value: dict[str, Any]) -> dict[str, Any]:
@@ -53,13 +61,13 @@ async def _save(request: Request, actor: Actor, section: str, value: dict[str, A
     entry = {"previous": previous, "by": actor.uid, "at": datetime.now(UTC).isoformat()}
     await db.set_row(Default.DEMO, DEMO_HISTORY, {section: entry})
     await audit(db, f"demo.{section}", "", actor.uid, {})
-    return _shown(settings, history | {section: entry})
+    return _shown(actor, settings, history | {section: entry})
 
 
 @router.get("/settings")
 async def get_settings(request: Request, actor: Actor = requires_actor(Scope.HUB_DEMO_VIEW)) -> dict:
     _need(actor, VIEW, *SECTION_SCOPES.values())
-    return _shown(*await _read(request))
+    return _shown(actor, *await _read(request))
 
 
 @router.put("/settings/{section}")

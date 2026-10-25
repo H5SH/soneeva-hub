@@ -19,6 +19,7 @@ SIGNATURES = {
     "image/png": lambda b: b.startswith(b"\x89PNG"),
     "image/jpeg": lambda b: b.startswith(b"\xff\xd8\xff"),
     "image/webp": lambda b: b[:4] == b"RIFF" and b[8:12] == b"WEBP",
+    "application/pdf": lambda b: b.startswith(b"%PDF"),
 }
 
 
@@ -38,17 +39,18 @@ def _matches(header: str | None, etag: str) -> bool:
     return "*" in tags or etag.removeprefix("W/") in tags
 
 
-async def read_image(request: Request) -> tuple[bytes, str]:
-    """The raw body: png, jpeg or webp by header and by its first bytes, at most `media.maxBytes`."""
+async def read_file(request: Request, settings: str = "media") -> tuple[bytes, str]:
+    """The raw body: one of `{settings}.types` by header and first bytes, at most `{settings}.maxBytes`."""
     kind = request.headers.get("content-type", "").split(";")[0].strip().lower()
-    if kind not in tunable("media.types") or kind not in SIGNATURES:
-        raise PlatformError("Send image/png, image/jpeg or image/webp", 415)
-    limit = tunable("media.maxBytes")
+    kinds = tunable(f"{settings}.types")
+    if kind not in kinds or kind not in SIGNATURES:
+        raise PlatformError(f"Send {', '.join(kinds)}", 415)
+    limit = tunable(f"{settings}.maxBytes")
     data = bytearray()
     async for chunk in request.stream():
         data.extend(chunk)
         if len(data) > limit:
-            raise PlatformError(f"Images are at most {limit} bytes", 413)
+            raise PlatformError(f"Files are at most {limit} bytes", 413)
     if not data or not SIGNATURES[kind](bytes(data)):
         raise PlatformError(f"Not a {kind} file", 415)
     return bytes(data), kind
@@ -79,7 +81,7 @@ async def put_media(
     await check(rules, await _who(request, actor), path, edit=True)
     if audio_target(path):
         raise PlatformError("Recordings are made by the voice service: save the text instead", 405)
-    data, kind = await read_image(request)
+    data, kind = await read_file(request)
     updated = await files.put(path, data, kind)
     return {"path": path, "updatedAt": updated.isoformat()}
 

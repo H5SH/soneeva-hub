@@ -12,6 +12,7 @@ from src.db import FakeDatabase
 from src.models.auth import Audience
 from src.numbers import FakeNumbers
 from src.payment import FakePayment
+from src.reader import FakeReader
 from src.remote import FakeRemote
 from src.services.modes import ByMode
 from src.services.tokens.keys import KeyStore
@@ -104,6 +105,7 @@ def services() -> Services:
     built = assemble(
         settings=None, db=db, payment=ByMode(FakePayment(), FakePayment()), accounts=accounts,
         storage=FakeStorage(), vault=FakeVault(), numbers=FakeNumbers(), remote=FakeRemote(),
+        reader=FakeReader(),
     )
     built.business_dbs = db.opened  # type: ignore[attr-defined]
     return built

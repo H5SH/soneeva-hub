@@ -132,6 +132,10 @@
       "label": "Change images",
       "description": "Upload or remove avatars, app icons and logos the acting person may change."
     },
+    "hub.knowledge.read": {
+      "label": "Read documents into knowledge",
+      "description": "Read a photo or PDF of a menu or other document into an agent's knowledge or a menu; nothing is stored."
+    },
     "hub.platform.view": {
       "label": "View platform data",
       "description": "Read platform roles, scopes and demo calls through the API."
@@ -326,6 +330,10 @@
       "label": "Afbeeldingen wijzigen",
       "description": "Avatars, app-iconen en logo's uploaden of verwijderen die de persoon mag wijzigen."
     },
+    "hub.knowledge.read": {
+      "label": "Documenten inlezen",
+      "description": "Een foto of pdf van een menu of ander document inlezen als kennis voor een agent of als menu; er wordt niets bewaard."
+    },
     "hub.platform.view": {
       "label": "Platformgegevens bekijken",
       "description": "Platformrollen, scopes en demogesprekken via de API lezen."
@@ -519,6 +527,10 @@
     "hub.media.update": {
       "label": "Bilder ändern",
       "description": "Avatare, App-Symbole und Logos hochladen oder entfernen, die die Person ändern darf."
+    },
+    "hub.knowledge.read": {
+      "label": "Dokumente einlesen",
+      "description": "Ein Foto oder PDF einer Speisekarte oder eines anderen Dokuments als Wissen für einen Agenten oder als Speisekarte einlesen; nichts wird gespeichert."
     },
     "hub.platform.view": {
       "label": "Plattformdaten ansehen",

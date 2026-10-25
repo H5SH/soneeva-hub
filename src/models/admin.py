@@ -48,6 +48,7 @@ class Scope(StrEnum):
     HUB_ACCOUNT_RECOVER = "hub.account.recover"
     HUB_MEDIA_VIEW = "hub.media.view"
     HUB_MEDIA_UPDATE = "hub.media.update"
+    HUB_KNOWLEDGE_READ = "hub.knowledge.read"
     HUB_PLATFORM_VIEW = "hub.platform.view"
     HUB_DEMO_VIEW = "hub.demo.view"
     HUB_DEMO_UPDATE = "hub.demo.update"

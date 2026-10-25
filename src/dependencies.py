@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, Path, Request, status
 from src.config import AppRegistry, Settings
 from src.models.app import AppConfig
 from src.models.mode import Mode, staged
+from src.reader import Reader
 from src.services.admin import AdminService
 from src.services.advertisements import AdvertisementService
 from src.services.billing import BillingService
@@ -108,6 +109,7 @@ PlatformDataDep = Annotated[PlatformData, Depends(_state("platform_data"))]
 HomeDep = Annotated[HomeService, Depends(_state("home"))]
 MediaDep = Annotated[MediaRules, Depends(_state("media"))]
 StorageDep = Annotated[FileStore, Depends(_state("storage"))]
+ReaderDep = Annotated[Reader, Depends(_state("reader"))]
 IvrDep = Annotated[IvrService, Depends(_state("ivr"))]
 CallersDep = Annotated[CallerService, Depends(_state("callers"))]
 AdvertisementDep = Annotated[AdvertisementService, Depends(_state("advertisements"))]

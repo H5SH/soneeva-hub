@@ -6,7 +6,7 @@ from src.dependencies import AdminDep, AppRefDep, CouponDep, PlanDep
 from src.models.admin import Principal, Scope
 from src.models.staff import CouponCreate, PlanCreate, PlanPut, PlanStatusPut, coupon_view, plan_view
 from src.routes.payment.apps import shown
-from src.routes.platform.media import read_image
+from src.routes.platform.media import read_file
 from src.services.errors import AdminError, PlatformError
 from src.services.plans import PlanService
 from src.services.tokens.staff import need, requires_staff
@@ -79,7 +79,7 @@ async def set_plan_icon(
     need(person, Scope.PLAN_UPDATE, ref.id)
     if not await plans.get(ref.id, code):
         raise PlatformError("No such plan", 404)
-    data, kind = await read_image(request)
+    data, kind = await read_file(request)
     return plan_view(await plans.set_icon(ref.id, code, data, kind))
 
 

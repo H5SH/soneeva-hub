@@ -108,6 +108,12 @@
     "maxBytes": 1048576,
     "types": ["image/png", "image/jpeg", "image/webp"]
   },
+  "knowledge": {
+    "model": "gemini-2.5-flash",
+    "location": "us-central1",
+    "maxBytes": 10485760,
+    "types": ["image/png", "image/jpeg", "image/webp", "application/pdf"]
+  },
   "accounts": {"resetLimit": 3, "resetWindowSeconds": 3600},
   "voice": {"language": "auto", "voice": "en-US-Chirp3-HD-Kore", "engine": "spark"},
   "numbers": {

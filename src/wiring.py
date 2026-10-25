@@ -9,6 +9,7 @@ from src.config import AppRegistry, Settings
 from src.db import DB, Database
 from src.numbers import NumberProvider, Numbers
 from src.payment import Payment, PaymentGateway
+from src.reader import GeminiReader, Reader
 from src.remote import Remote, RemoteService
 from src.services.admin import AdminService
 from src.services.advertisements import AdvertisementService
@@ -76,6 +77,7 @@ class Services:
     advertisements: AdvertisementService
     actors: ActorResolver
     storage: FileStore
+    reader: Reader
     media: MediaRules
     ivr: IvrService
     callers: CallerService
@@ -91,7 +93,7 @@ def console_url(settings: Settings | None) -> str:
 
 def assemble(
     settings: Settings | None, db: Database, payment: ByMode[PaymentGateway], accounts: AccountProvider,
-    storage: FileStore, vault: Vault, numbers: NumberProvider, remote: RemoteService,
+    storage: FileStore, vault: Vault, numbers: NumberProvider, remote: RemoteService, reader: Reader,
     identity: PasswordSignIn | None = None,
 ) -> Services:
     """Every dependency injected, so tests pass fakes for the external ones. Stripe-backed services
@@ -124,7 +126,7 @@ def assemble(
         role_service=RoleService(people, roles), platform_data=platform_data,
         home=HomeService(businesses, people_service, ads, admin, platform_data),
         advertisements=ads,
-        actors=ActorResolver(people, businesses), storage=storage,
+        actors=ActorResolver(people, businesses), storage=storage, reader=reader,
         media=MediaRules(accounts, people, businesses, ads),
         ivr=IvrService(businesses, storage), callers=CallerService(db),
         agent_tokens=AgentTokenService(db, roles), identity=identity,
@@ -140,5 +142,6 @@ def build(settings: Settings) -> Services:
             if settings.stripe_test_secret_key else None),
         accounts=Accounts(), storage=Storage(), vault=SecretManager(project_id()),
         numbers=Numbers(settings.twilio_account_sid, settings.twilio_auth_token), remote=Remote(),
+        reader=GeminiReader(project_id()),
         identity=PasswordSignIn(settings.firebase_api_key) if settings.firebase_api_key else None,
     )

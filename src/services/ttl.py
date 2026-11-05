@@ -19,11 +19,11 @@ class Ttl:
             return MISSING
         return entry[1]
 
-    def put(self, key: Any, value: Any) -> Any:
+    def put(self, key: Any, value: Any, seconds: float | None = None) -> Any:
         now = time.monotonic()
         if len(self._entries) > 10_000:
             self._entries = {k: e for k, e in self._entries.items() if e[0] > now}
-        self._entries[key] = (now + self._seconds, value)
+        self._entries[key] = (now + (self._seconds if seconds is None else seconds), value)
         return value
 
     def pop(self, key: Any) -> None:

@@ -195,6 +195,14 @@
     "hub.demo.update": {
       "label": "Change demo settings",
       "description": "Change the demo's settings; the demo follows them at once."
+    },
+    "hub.store.signin": {
+      "label": "Sign in from a store",
+      "description": "Find a store's business and owner, to sign them in from the store's admin."
+    },
+    "hub.store.update": {
+      "label": "Manage stores",
+      "description": "Connect and disconnect stores, and follow an uninstall, a reinstall or a store-paid plan."
     }
   },
   "nl": {
@@ -393,6 +401,14 @@
     "hub.demo.update": {
       "label": "Demo-instellingen wijzigen",
       "description": "De instellingen van de demo wijzigen; de demo volgt ze meteen."
+    },
+    "hub.store.signin": {
+      "label": "Aanmelden vanuit een winkel",
+      "description": "De zaak en eigenaar van een winkel vinden, om hen vanuit de winkelbeheerder aan te melden."
+    },
+    "hub.store.update": {
+      "label": "Winkels beheren",
+      "description": "Winkels koppelen en ontkoppelen, en een verwijdering, herinstallatie of via de winkel betaald abonnement volgen."
     }
   },
   "de": {
@@ -591,6 +607,14 @@
     "hub.demo.update": {
       "label": "Demo-Einstellungen ändern",
       "description": "Die Einstellungen der Demo ändern; die Demo übernimmt sie sofort."
+    },
+    "hub.store.signin": {
+      "label": "Aus einem Shop anmelden",
+      "description": "Das Unternehmen und den Inhaber eines Shops finden, um sie aus der Shop-Verwaltung anzumelden."
+    },
+    "hub.store.update": {
+      "label": "Shops verwalten",
+      "description": "Shops verbinden und trennen sowie Deinstallation, Neuinstallation oder einen über den Shop bezahlten Tarif verfolgen."
     }
   }
 }

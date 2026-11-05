@@ -9,10 +9,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from src.config import get_settings  # noqa: E402
-from src.models.admin import SUPERADMIN, Principal, Scope  # noqa: E402
+from src.models.admin import SUPERADMIN, Scope  # noqa: E402
+from src.models.identity import Identity  # noqa: E402
 from src.wiring import Services, build  # noqa: E402
 
-OPERATOR = Principal(uid="cli", email="cli@localhost", role=SUPERADMIN, scopes=list(Scope), apps=[])
+OPERATOR = Identity(uid="cli", email="cli@localhost", role=SUPERADMIN, payment_scopes=list(Scope))
 
 Context = Services
 

@@ -4,13 +4,14 @@ from fastapi import Depends, HTTPException, Path, Request, status
 
 from src.models.auth import Audience, AuthContext, TokenClaims
 from src.models.mode import staged
+from src.services.state import services_of
 from src.services.tokens.verify import AuthError, TokenVerifier
 
 HEADER_NAME = "x-api-key"
 
 
 def get_verifier(request: Request) -> TokenVerifier:
-    return request.app.state.verifier
+    return services_of(request).verifier
 
 
 async def require_api_token(

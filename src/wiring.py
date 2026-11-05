@@ -34,6 +34,7 @@ from src.services.platform import PlatformData
 from src.services.platform.home import HomeService
 from src.services.roles import RoleStore
 from src.services.sandbox import SandboxService
+from src.services.stores import StoreService
 from src.services.tokens.keys import KeyStore
 from src.services.tokens.replay import ReplayGuard
 from src.services.tokens.verify import TokenVerifier
@@ -42,13 +43,14 @@ from src.services.usage import UsageService
 from src.services.voice import VoiceService
 from src.services.webhook import WebhookService
 from src.storage import FileStore, Storage
+from src.stores import ShopifyBilling, StoreBilling
 from src.tunables import tunable
 from src.vault import SecretManager, Vault
 
 
 @dataclass
 class Services:
-    settings: Settings | None
+    settings: Settings
     db: Database
     payment: ByMode[PaymentGateway]
     keys: KeyStore
@@ -62,6 +64,7 @@ class Services:
     coupons: ByMode[CouponService]
     webhooks: ByMode[WebhookService]
     businesses: BusinessService
+    stores: StoreService
     voice: VoiceService
     sandbox: SandboxService
     usage: UsageService
@@ -78,6 +81,7 @@ class Services:
     actors: ActorResolver
     storage: FileStore
     reader: Reader
+    store_billing: StoreBilling
     media: MediaRules
     ivr: IvrService
     callers: CallerService
@@ -85,16 +89,17 @@ class Services:
     identity: PasswordSignIn | None = None
 
 
-def console_url(settings: Settings | None) -> str:
+def console_url(settings: Settings) -> str:
     """Where a handoff lands: the local console in development, no extra env needed."""
-    local = settings is not None and settings.environment == "development"
+    local = settings.environment == "development"
     return tunable("handoff.localConsoleUrl" if local else "handoff.consoleUrl")
 
 
 def assemble(
-    settings: Settings | None, db: Database, payment: ByMode[PaymentGateway], accounts: AccountProvider,
+    settings: Settings, project: str, db: Database, payment: ByMode[PaymentGateway],
+    accounts: AccountProvider,
     storage: FileStore, vault: Vault, numbers: NumberProvider, remote: RemoteService, reader: Reader,
-    identity: PasswordSignIn | None = None,
+    store_billing: StoreBilling, identity: PasswordSignIn | None = None,
 ) -> Services:
     """Every dependency injected, so tests pass fakes for the external ones. Stripe-backed services
     come once per mode (`payment` has a test gateway only when test mode is configured)."""
@@ -105,11 +110,10 @@ def assemble(
     admin = AdminService(db, keys, payment, plans, forget=registry.forget)
     tools = ToolService(db, keys)
     businesses = BusinessService(db, accounts, billing, identity)
-    usage = UsageService(payment, billing, businesses)
+    usage = UsageService(payment, billing, businesses, plans, store_billing)
     ads = AdvertisementService(db, businesses)
     people_service, platform_data = PeopleService(accounts, people), PlatformData(db)
-    hub_url, project = (settings.service_base_url, project_id()) if settings else ("", "")
-    voice = VoiceService(db, businesses, tools, vault, numbers, remote, hub_url, project)
+    voice = VoiceService(db, businesses, tools, vault, numbers, remote, settings.service_base_url, project)
     webhooks = payment.map(lambda gateway, mode: WebhookService(
         gateway, billing[mode], plans[mode], keys, mode, businesses.checklist.on_subscription))
     return Services(
@@ -118,15 +122,16 @@ def assemble(
         billing=billing, admin=admin, tools=tools, plans=plans,
         coupons=plans.map(lambda plan_service, mode: CouponService(payment[mode], plan_service)),
         webhooks=webhooks,
-        businesses=businesses, voice=voice, sandbox=SandboxService(db, businesses, voice),
-        usage=usage, numbers=PhoneNumberService(db, numbers, billing, businesses, voice),
-        customers=CustomerService(payment, billing, businesses, usage),
+        businesses=businesses, stores=StoreService(db, businesses, accounts, plans), voice=voice,
+        sandbox=SandboxService(db, businesses, voice),
+        usage=usage, numbers=PhoneNumberService(db, numbers, businesses, voice),
+        customers=CustomerService(payment, businesses, usage),
         handoff=HandoffService(db, businesses, accounts, console_url(settings)),
-        accounts=accounts, people=people_service, members=MemberService(accounts),
+        accounts=accounts, people=people_service, members=MemberService(accounts, businesses),
         role_service=RoleService(people, roles), platform_data=platform_data,
         home=HomeService(businesses, people_service, ads, admin, platform_data),
         advertisements=ads,
-        actors=ActorResolver(people, businesses), storage=storage, reader=reader,
+        actors=ActorResolver(people, businesses), storage=storage, reader=reader, store_billing=store_billing,
         media=MediaRules(accounts, people, businesses, ads),
         ivr=IvrService(businesses, storage), callers=CallerService(db),
         agent_tokens=AgentTokenService(db, roles), identity=identity,
@@ -135,13 +140,13 @@ def assemble(
 
 def build(settings: Settings) -> Services:
     return assemble(
-        settings=settings, db=DB(project=project_id(), location=region()),
+        settings=settings, project=project_id(), db=DB(project=project_id(), location=region()),
         payment=ByMode(
             Payment(settings.stripe_secret_key, settings.stripe_webhook_secret),
             Payment(settings.stripe_test_secret_key, settings.stripe_test_webhook_secret)
             if settings.stripe_test_secret_key else None),
         accounts=Accounts(), storage=Storage(), vault=SecretManager(project_id()),
         numbers=Numbers(settings.twilio_account_sid, settings.twilio_auth_token), remote=Remote(),
-        reader=GeminiReader(project_id()),
+        reader=GeminiReader(project_id()), store_billing=ShopifyBilling(settings.connections_key),
         identity=PasswordSignIn(settings.firebase_api_key) if settings.firebase_api_key else None,
     )

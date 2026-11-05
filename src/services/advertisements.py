@@ -11,18 +11,15 @@ from src.db import Database
 from src.models import paths
 from src.models.advertisement import AdFields, AdPatch
 from src.models.db import DELETED_FLAG, BusinessDb, Default
-from src.models.platform import Caller
+from src.models.identity import Identity
 from src.services.businesses import BusinessService
 from src.services.errors import PlatformError
 from src.tunables import tunable
+from src.utils import iso
 
 #: Master fields a published copy carries (plus the image paths).
 SHOWN = ("title", "body", "buttonLabel", "buttonUrl", "background", "active")
 ALPHABET = string.ascii_lowercase + string.digits
-
-
-def _iso(value: Any) -> Any:
-    return value.isoformat() if isinstance(value, datetime) else value
 
 
 def image_paths(ad_id: str, row: dict[str, Any]) -> dict[str, str | None]:
@@ -37,7 +34,7 @@ def view(row: dict[str, Any]) -> dict[str, Any]:
     fields = AdFields.model_fields
     return ({"id": ad_id} | {k: row.get(k, fields[k].default) for k in fields} | image_paths(ad_id, row)
             | {"businessIds": list(row.get("businessIds") or []), "createdBy": row.get("createdBy", ""),
-               "createdAt": _iso(row.get("createdAt")), "updatedAt": _iso(row.get("updatedAt"))})
+               "createdAt": iso(row.get("createdAt")), "updatedAt": iso(row.get("updatedAt"))})
 
 
 class AdvertisementService:
@@ -73,7 +70,7 @@ class AdvertisementService:
         fields = patch.model_dump(exclude_unset=True, exclude_none=True)
         self._background(fields.get("background"))
         if fields:
-            await self._db.set_row(Default.ADVERTISEMENTS, ad_id, fields)
+            await self._db.upsert_live(Default.ADVERTISEMENTS, ad_id, fields)
         row = await self.require(ad_id)
         for business_id in row.get("businessIds") or []:
             await self._write_copy(business_id, ad_id, row, fresh=False)
@@ -86,7 +83,7 @@ class AdvertisementService:
         await self._db.delete_row(Default.ADVERTISEMENTS, ad_id)
         return {"deleted": True}
 
-    async def publish(self, caller: Caller, ad_id: str, business_ids: list[str]) -> dict[str, Any]:
+    async def publish(self, caller: Identity, ad_id: str, business_ids: list[str]) -> dict[str, Any]:
         """Only businesses the caller reaches (404 otherwise, before anything is written)."""
         if len(business_ids) > tunable("advertisements.maxBusinesses"):
             raise PlatformError("Too many businesses at once", 422)
@@ -97,15 +94,15 @@ class AdvertisementService:
         had = set(row.get("businessIds") or [])
         for business_id in wanted:
             await self._write_copy(business_id, ad_id, row, fresh=business_id not in had)
-        await self._db.set_row(Default.ADVERTISEMENTS, ad_id, {"businessIds": sorted(had | set(wanted))})
+        await self._db.upsert_live(Default.ADVERTISEMENTS, ad_id, {"businessIds": sorted(had | set(wanted))})
         return view(await self.require(ad_id))
 
-    async def withdraw(self, caller: Caller, ad_id: str, business_id: str) -> dict[str, Any]:
+    async def withdraw(self, caller: Identity, ad_id: str, business_id: str) -> dict[str, Any]:
         row = await self.require(ad_id)
         await self._businesses.require(caller, business_id)
         await self._withdraw_copy(business_id, ad_id)
         kept = [b for b in row.get("businessIds") or [] if b != business_id]
-        await self._db.set_row(Default.ADVERTISEMENTS, ad_id, {"businessIds": kept})
+        await self._db.upsert_live(Default.ADVERTISEMENTS, ad_id, {"businessIds": kept})
         return view(await self.require(ad_id))
 
     async def published_to(self, business_id: str, ad_id: str) -> bool:

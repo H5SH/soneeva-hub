@@ -182,3 +182,15 @@ def test_pause_needs_write_and_delete_needs_its_own_scope(created, client, beare
     assert listed() == [] and [b["id"] for b in listed("?status=deleted")] == [biz]
     home = client.get("/v1/platform/home", headers=bearer("soneeva", CONSOLE, uid="writer"))
     assert home.json()["businesses"]["total"] == 0
+
+
+def test_a_business_token_only_signs_off_never_lifts_a_hold(created, client, bearer, services):
+    biz, url = created["id"], f"/v1/businesses/{created['id']}"
+    status = lambda value, **who: client.patch(  # noqa: E731
+        url, json={"status": value}, headers=bearer("soneeva", CONSOLE, **who)).status_code
+    assert status("running", sub=biz) == 200  # pending to running: the owner's sign-off
+    assert status("running", sub=biz) == 200  # again changes nothing
+    assert status("onhold", sub=biz) == 403
+    services.db.rows[("businesses", biz)]["status"] = "onhold"
+    assert status("running", sub=biz) == 403
+    assert status("running") == 200

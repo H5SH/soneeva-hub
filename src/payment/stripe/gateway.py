@@ -35,9 +35,8 @@ class StripeGateway(StripeCatalog, PaymentGateway):
     """Stripe implementation of the payment contract."""
 
     def __init__(self, api_key: str, webhook_secret: str) -> None:
-        self._api = stripe.StripeClient(api_key).v1
+        super().__init__(stripe.StripeClient(api_key).v1)
         self._webhook_secret = webhook_secret
-        self._meter_events = {}
 
     async def create_customer(self, app_id: str, tenant: str, name: str) -> str:
         customer = await self._api.customers.create_async(
@@ -164,8 +163,11 @@ class StripeGateway(StripeCatalog, PaymentGateway):
 
     def parse_webhook(self, payload: bytes, signature: str | None, secret: str | None = None) -> WebhookEvent:
         """`secret` is the app's own signing secret; the constructor's is only a fallback."""
+        secret = secret or self._webhook_secret
+        if not secret:  # an HMAC with an empty key is one anybody can make
+            raise SignatureError("No webhook signing secret is configured")
         try:
-            event = stripe.Webhook.construct_event(payload, signature, secret or self._webhook_secret)
+            event = stripe.Webhook.construct_event(payload, signature, secret)
         except (stripe.SignatureVerificationError, ValueError) as error:
             raise SignatureError(str(error)) from error
         body = plain(event)

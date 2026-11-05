@@ -5,16 +5,15 @@
 
 import re
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
 
 from src.auth import AccountProvider
 from src.models import paths
-from src.models.admin import SERVICEPERSON, Principal, Scope
-from src.models.people import Actor
+from src.models.admin import SERVICEPERSON, Scope
+from src.models.identity import Identity
 from src.services.advertisements import AdvertisementService
 from src.services.businesses import BusinessService
 from src.services.errors import PlatformError
-from src.services.people.rules import PROFILE_EDIT, PROFILE_WRITE, holds, reach
+from src.services.people.rules import PROFILE_EDIT, PROFILE_WRITE, holds, scope_reach
 from src.services.people.store import People
 
 USERS_VIEW, USERS_WRITE = "Users.View", "Users.Write"
@@ -24,27 +23,11 @@ SERVICEPERSONS_VIEW = "Servicepersons.View"
 AUDIO_VIEW = ("ivr.view", "ivr.edit", "audio.edit")
 
 
-@dataclass
-class Who:
-    """The acting person: console and business scopes (`actor`), and for sub `-` the
-    internal app's `payment.*` view of them (`staff`, None when they have no payment record)."""
+BRANCH_VIEW = ("branches.view", "branches.edit")
 
-    actor: Actor
-    staff: Principal | None = None
 
-    @property
-    def business(self) -> str | None:
-        return self.actor.business_id
-
-    def inside(self, business_id: str) -> bool:
-        """A member of (or a serviceperson with a running grant in) that business, by its token."""
-        return self.business == business_id and bool(self.actor.scopes)
-
-    def holds(self, scope: str) -> bool:
-        return scope in self.actor.scopes
-
-    def platform(self, scope: str) -> bool:
-        return self.actor.platform and holds(self.actor.scopes, scope)
+def _on_platform(who: Identity, scope: str) -> bool:
+    return who.platform and holds(who.scopes, scope)
 
 
 class MediaRules:
@@ -59,94 +42,94 @@ class MediaRules:
         account = await self._accounts.get(uid)
         return account.businessId if account else None
 
-    async def _reads_business(self, who: Who, business_id: str) -> bool:
+    async def _reads_business(self, who: Identity, business_id: str) -> bool:
         """Businesses.View, or Businesses.Access on a business assigned to the person."""
-        if who.platform(BUSINESSES_VIEW):
+        if _on_platform(who, BUSINESSES_VIEW):
             return True
-        if not who.platform(BUSINESSES_ACCESS):
+        if not _on_platform(who, BUSINESSES_ACCESS):
             return False
         business = await self._businesses.get(business_id)
-        return business is not None and business.servicepersonUid == who.actor.uid
+        return business is not None and business.servicepersonUid == who.uid
 
-    async def _platform_reach(self, who: Who, scope: str, uid: str) -> bool:
+    async def _platform_reach(self, who: Identity, scope: str, uid: str) -> bool:
         """`scope` over a platform account: everyone, or (an `Assigned.` twin) those they look after."""
-        r = reach(who.actor.scopes, scope) if who.actor.platform else None
+        r = scope_reach(who.scopes, scope) if who.platform else None
         if not r or await self._business_of(uid):
             return False
-        return r == "all" or (who.actor.uid, uid) in await self._people.assignments()
+        return r == "all" or (who.uid, uid) in await self._people.assignments()
 
-    async def _in_business_of(self, who: Who, uid: str) -> bool:
-        if not who.business or not who.inside(who.business):
+    async def _in_business_of(self, who: Identity, uid: str) -> bool:
+        if not who.business_id or not who.inside(who.business_id):
             return False
-        if await self._business_of(uid) == who.business:
+        if await self._business_of(uid) == who.business_id:
             return True
-        business = await self._businesses.get(who.business)
+        business = await self._businesses.get(who.business_id)
         return business is not None and business.servicepersonUid == uid
 
-    async def avatar_view(self, who: Who, uid: str) -> bool:
-        if uid == who.actor.uid:
+    async def avatar_view(self, who: Identity, uid: str) -> bool:
+        if uid == who.uid:
             return True
-        if who.business:
+        if who.business_id:
             return await self._in_business_of(who, uid)
         if await self._platform_reach(who, USERS_VIEW, uid):
             return True
-        if not who.platform(SERVICEPERSONS_VIEW):
+        if not _on_platform(who, SERVICEPERSONS_VIEW):
             return False
         return (await self._people.profile(uid) or {}).get("role") == SERVICEPERSON
 
-    async def avatar_edit(self, who: Who, uid: str) -> bool:
-        if uid == who.actor.uid:
-            return who.holds(PROFILE_EDIT) if who.business else who.platform(PROFILE_WRITE)
-        if who.business:
-            return who.holds("team.edit") and await self._business_of(uid) == who.business
+    async def avatar_edit(self, who: Identity, uid: str) -> bool:
+        if uid == who.uid:
+            return who.has_exact(PROFILE_EDIT) if who.business_id else _on_platform(who, PROFILE_WRITE)
+        if who.business_id:
+            return who.has_exact("team.edit") and await self._business_of(uid) == who.business_id
         return await self._platform_reach(who, USERS_WRITE, uid)
 
-    async def icon_view(self, who: Who, app_id: str) -> bool:
-        return who.staff is not None and who.staff.may(Scope.APP_VIEW, app_id)
+    async def icon_view(self, who: Identity, app_id: str) -> bool:
+        return who.may(Scope.APP_VIEW, app_id)
 
-    async def icon_edit(self, who: Who, app_id: str) -> bool:
-        return who.staff is not None and who.staff.may(Scope.APP_UPDATE, app_id)
+    async def icon_edit(self, who: Identity, app_id: str) -> bool:
+        return who.may(Scope.APP_UPDATE, app_id)
 
-    async def logo_view(self, who: Who, business_id: str) -> bool:
-        if who.business:
+    async def logo_view(self, who: Identity, business_id: str) -> bool:
+        if who.business_id:
             return who.inside(business_id)
-        staff = who.staff
-        if staff and staff.has(Scope.BUSINESS_VIEW) and staff.reaches(business_id):
+        if who.has(Scope.BUSINESS_VIEW) and who.reaches_id(business_id):
             return True
         return await self._reads_business(who, business_id)
 
-    async def logo_edit(self, who: Who, business_id: str) -> bool:
-        return who.business == business_id and who.holds("business.edit")
+    async def logo_edit(self, who: Identity, business_id: str) -> bool:
+        return who.business_id == business_id and who.has_exact("business.edit")
 
-    async def branch_logo_view(self, who: Who, business_id: str, _branch: str) -> bool:
-        if who.business:
-            return who.business == business_id and (who.holds("branches.view") or who.holds("branches.edit"))
+    async def branch_logo_view(self, who: Identity, business_id: str) -> bool:
+        if who.business_id:
+            return who.business_id == business_id and any(who.has_exact(s) for s in BRANCH_VIEW)
         return await self._reads_business(who, business_id)
 
-    async def branch_logo_edit(self, who: Who, business_id: str, _branch: str) -> bool:
-        return who.business == business_id and who.holds("branches.edit")
+    async def branch_logo_edit(self, who: Identity, business_id: str) -> bool:
+        return who.business_id == business_id and who.has_exact("branches.edit")
 
-    async def audio_view(self, who: Who, business_id: str, _name: str, _version: str) -> bool:
-        if who.business:
-            return who.business == business_id and any(who.holds(s) for s in AUDIO_VIEW)
+    async def audio_view(self, who: Identity, business_id: str) -> bool:
+        if who.business_id:
+            return who.business_id == business_id and any(who.has_exact(s) for s in AUDIO_VIEW)
         return await self.logo_view(who, business_id)
 
-    async def ad_view(self, who: Who, ad_id: str, _kind: str) -> bool:
+    async def ad_view(self, who: Identity, ad_id: str) -> bool:
         """Advertise.View (or .Write), or a business the ad is published to."""
-        if who.business:
-            return who.inside(who.business) and await self._ads.published_to(who.business, ad_id)
-        return who.platform(ADVERTISE_VIEW) or who.platform(ADVERTISE_WRITE)
+        if who.business_id:
+            return who.inside(who.business_id) and await self._ads.published_to(who.business_id, ad_id)
+        return _on_platform(who, ADVERTISE_VIEW) or _on_platform(who, ADVERTISE_WRITE)
 
-    async def ad_edit(self, who: Who, _ad_id: str, _kind: str) -> bool:
-        return not who.business and who.platform(ADVERTISE_WRITE)
+    async def ad_edit(self, who: Identity, _ad_id: str) -> bool:
+        return not who.business_id and _on_platform(who, ADVERTISE_WRITE)
 
-    async def audio_edit(self, who: Who, business_id: str, _name: str, _version: str) -> bool:
-        return who.business == business_id and who.holds("audio.edit")
+    async def audio_edit(self, who: Identity, business_id: str) -> bool:
+        return who.business_id == business_id and who.has_exact("audio.edit")
 
 
-Rule = Callable[..., Awaitable[bool]]
+Rule = Callable[[MediaRules, Identity, str], Awaitable[bool]]
 
-#: Every path pattern (src/models/paths.py) with who may see it and who may change it. The caches
+#: Every path pattern (src/models/paths.py) with who may see it and who may change it, each given the
+#: pattern's first group: the person, app, business or ad it belongs to. The caches
 #: soneeva-voice keeps (`businesses/{id}/cache/…`, `cache/…`) and the demo's `audio/` are not media.
 MEDIA: list[tuple[re.Pattern[str], Rule, Rule]] = [
     (paths.USER_AVATAR, MediaRules.avatar_view, MediaRules.avatar_edit),
@@ -167,12 +150,12 @@ def audio_target(path: str) -> tuple[str, str, int | None] | None:
     return business_id, name, None if which == "active" else int(which[1:])
 
 
-async def check(rules: MediaRules, who: Who, path: str, edit: bool) -> None:
+async def check(rules: MediaRules, who: Identity, path: str, edit: bool) -> None:
     """Raises 404 for a path that is not media, 403 when the person may not see or change it."""
     for pattern, view, change in MEDIA:
         match = pattern.match(path)
         if match:
-            if not await (change if edit else view)(rules, who, *match.groups()):
+            if not await (change if edit else view)(rules, who, match.group(1)):
                 raise PlatformError("You can't " + ("change" if edit else "see") + " this file", 403)
             return
     raise PlatformError("Not a media path", 404)

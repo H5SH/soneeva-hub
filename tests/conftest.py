@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from src.auth import FakeAccounts
+from src.config import Settings
 from src.db import FakeDatabase
 from src.models.auth import Audience
 from src.numbers import FakeNumbers
@@ -19,6 +20,7 @@ from src.services.tokens.keys import KeyStore
 from src.services.tokens.replay import ReplayGuard
 from src.services.tokens.verify import TokenVerifier
 from src.storage import FakeStorage
+from src.stores import FakeStoreBilling
 from src.vault import FakeVault
 from src.wiring import Services, assemble
 
@@ -103,9 +105,11 @@ def services() -> Services:
     accounts = FakeAccounts()
     accounts.add("owner1", username="owner1")
     built = assemble(
-        settings=None, db=db, payment=ByMode(FakePayment(), FakePayment()), accounts=accounts,
+        settings=Settings(_env_file=None, stripe_secret_key="sk_test", service_base_url="", auth_secret="",
+                          firebase_api_key="", environment="production", connections_key=""),
+        project="", db=db, payment=ByMode(FakePayment(), FakePayment()), accounts=accounts,
         storage=FakeStorage(), vault=FakeVault(), numbers=FakeNumbers(), remote=FakeRemote(),
-        reader=FakeReader(),
+        reader=FakeReader(), store_billing=FakeStoreBilling(),
     )
     built.business_dbs = db.opened  # type: ignore[attr-defined]
     return built
@@ -146,3 +150,24 @@ def bearer(services):
         return {"Authorization": f"Bearer {token}"}
 
     return headers
+
+
+@pytest.fixture
+def console(bearer):
+    """The console's headers, with what it calls for stores."""
+    from tests.setup.stores import SCOPES
+
+    return lambda sub="-", uid=None: bearer("soneeva", SCOPES, sub=sub, uid=uid)
+
+
+@pytest.fixture
+def signed_up(client, console, services):
+    """A business that signed up from the store, with its owner."""
+    from tests.setup.stores import SIGNUP
+    from tests.test_plans import invoke
+
+    invoke(services, "seed:soneeva")
+    body = SIGNUP | {"dataLocation": "europe-west3"}  # a database of its own, to read as `business_dbs`
+    response = client.post("/v1/businesses", json=body, headers=console())
+    assert response.status_code == 201, response.text
+    return response.json()

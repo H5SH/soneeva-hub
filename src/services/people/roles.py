@@ -6,9 +6,9 @@ hold (taking one off is always fine), edits their own role, or deletes a role so
 
 from typing import Any
 
-from src.models.admin import person_scopes
-from src.models.people import Actor
-from src.services.people.rules import Refused, assignable, catalogue, covers, holds, known, reach
+from src.models.admin import APP_SCOPE
+from src.models.identity import Identity
+from src.services.people.rules import Refused, assignable, catalogue, covers, holds, known, scope_reach
 from src.services.people.store import People
 from src.services.roles import RoleStore
 
@@ -29,9 +29,9 @@ class RoleService:
         self._people = people
         self._cache = cache
 
-    async def overview(self, actor: Actor) -> dict[str, Any]:
+    async def overview(self, actor: Identity) -> dict[str, Any]:
         """Every role with its holders, the scope catalogue, and the roles the actor may give."""
-        if not actor.platform or not any(reach(actor.scopes, s) for s in READERS):
+        if not actor.platform or not any(scope_reach(actor.scopes, s) for s in READERS):
             raise Refused("You can't see roles")
         roles = await self._people.roles()
         return {
@@ -41,12 +41,14 @@ class RoleService:
             "assignable": assignable(actor.scopes, roles),
         }
 
-    def _check(self, actor: Actor, name: str, scopes: list[str], had: list[str]) -> list[str]:
+    def _check(self, actor: Identity, name: str, scopes: list[str], had: list[str]) -> list[str]:
         if not actor.platform or not holds(actor.scopes, WRITE):
             raise Refused("You can't change roles")
         if name == actor.role:
             raise Refused("You can't change your own role")
-        scopes = list(dict.fromkeys(person_scopes(scopes)))
+        if any(s.startswith(APP_SCOPE) for s in scopes):
+            raise Refused("hub.* scopes are what an app may do, never a person", 422)
+        scopes = list(dict.fromkeys(scopes))
         added = [s for s in scopes if s not in had]
         ids = known()
         unknown = [s for s in added if s not in ids]
@@ -56,14 +58,14 @@ class RoleService:
             raise Refused("You can't give scopes you don't hold")
         return scopes
 
-    async def create(self, actor: Actor, name: str, scopes: list[str]) -> dict[str, Any]:
+    async def create(self, actor: Identity, name: str, scopes: list[str]) -> dict[str, Any]:
         name = role_name(name)
         if name in await self._people.roles():
             raise Refused(f"A role called '{name}' already exists.", 409)
         await self._save(name, self._check(actor, name, scopes, []))
         return await self.overview(actor)
 
-    async def update(self, actor: Actor, name: str, scopes: list[str]) -> dict[str, Any]:
+    async def update(self, actor: Identity, name: str, scopes: list[str]) -> dict[str, Any]:
         """Replaces the role's scopes; any `hub.*` sent or still stored falls away."""
         had = (await self._people.roles()).get(name)
         if had is None:
@@ -71,7 +73,7 @@ class RoleService:
         await self._save(name, self._check(actor, name, scopes, had))
         return await self.overview(actor)
 
-    async def delete(self, actor: Actor, name: str) -> dict[str, Any]:
+    async def delete(self, actor: Identity, name: str) -> dict[str, Any]:
         if name not in await self._people.roles():
             raise Refused("No such role", 404)
         self._check(actor, name, [], [])

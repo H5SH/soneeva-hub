@@ -8,25 +8,25 @@ business's data and follows their changes itself.
 """
 
 import io
-import logging
 
 from dotenv import dotenv_values
 
 from src.db import Database
 from src.models.db import Default
+from src.models.mode import SONEEVA
 from src.models.payment import WebhookEvent
 from src.models.platform import Business
 from src.numbers import NumberProvider, NumbersError
 from src.remote import RemoteService
-from src.services.businesses import BusinessService, audit
+from src.services.audit import audit
+from src.services.businesses import BusinessService
 from src.services.errors import PlatformError
 from src.services.tools import ToolService
+from src.tunables import tunable
 from src.vault import Vault
 
-logger = logging.getLogger(__name__)
 READY_TIMEOUT_SECONDS = 30.0
-#: Subscribing to this app gets a voice env; each voice signs as the tool VOICE_TOOL with its own key.
-VOICE_APP = "soneeva"
+#: Each voice signs as this tool, with its own key.
 VOICE_TOOL = "soneeva-voice"
 #: Paths on the voice service that a number's calls and status callbacks go to.
 WEBHOOK_PATH = "/voice"
@@ -43,7 +43,8 @@ def to_dotenv(env: dict[str, str]) -> str:
 
 
 def from_dotenv(text: str) -> dict[str, str]:
-    return {k: v for k, v in dotenv_values(stream=io.StringIO(text)).items() if v is not None}
+    values = dotenv_values(stream=io.StringIO(text), interpolate=False)  # a name holding `${X}` stays that
+    return {k: v for k, v in values.items() if v is not None}
 
 
 class VoiceService:
@@ -61,7 +62,6 @@ class VoiceService:
     async def issue_env(self, business: Business) -> dict[str, str]:
         """A new voice key for the business (the previous one stops working at once) and its env."""
         kid, private_pem = await self._tools.issue_subject_key(VOICE_TOOL, business.id)
-        await self._businesses.set_fields(business.id, {"voiceKeyId": kid})
         env = {
             "BUSINESS_ID": business.id,
             "BUSINESS_NAME": business.name,
@@ -74,7 +74,7 @@ class VoiceService:
             "HUB_PRIVATE_KEY": private_pem,
         }
         if self._project:
-            env["STORAGE_BUCKET"] = f"gs://{self._project}.firebasestorage.app"
+            env["STORAGE_BUCKET"] = "gs://" + tunable("media.bucket").format(project=self._project)
         secret = await self._db.get_row(Default.SECRETS, business.id) or {}
         if secret.get("twilioAccountSid"):
             env["TWILIO_ACCOUNT_SID"] = secret["twilioAccountSid"]
@@ -88,13 +88,6 @@ class VoiceService:
         business = await self._businesses.require(None, business_id)
         await self._vault.write(secret_name(business_id), to_dotenv(await self.issue_env(business)))
 
-    async def provide_quietly(self, business_id: str) -> None:
-        """For background tasks: a failure is logged, never raised."""
-        try:
-            await self.provide(business_id)
-        except Exception:  # noqa: BLE001 - the webhook has answered already
-            logger.exception("voice secret failed for %s", business_id)
-
     async def add(self, business_id: str, fields: dict[str, str]) -> None:
         """Merged into the business's secret as a new version; the next voice revision gets it."""
         await self.provide(business_id)
@@ -104,7 +97,7 @@ class VoiceService:
     def subscribed_business(self, app_id: str, event: WebhookEvent) -> str | None:
         """The business whose voice env is due, when this event is a completed checkout of the voice
         app. Every endpoint receives every app's events, so the session must name this app."""
-        if app_id != VOICE_APP or event.type != "checkout.session.completed":
+        if app_id != SONEEVA or event.type != "checkout.session.completed":
             return None
         metadata = event.data.get("metadata") or {}
         return metadata.get("tenant") if metadata.get("app") == app_id else None

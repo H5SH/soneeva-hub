@@ -4,8 +4,6 @@ Business-subject tokens only; the person needs `billing.view` in that business. 
 bills in Stripe test mode.
 """
 
-from urllib.parse import urlparse
-
 from fastapi import APIRouter
 
 from src.dependencies import BillingsDep, BusinessDep, RegistryDep
@@ -13,8 +11,9 @@ from src.models.admin import Scope
 from src.models.api import CheckoutRequest
 from src.models.app import AppConfig
 from src.models.auth import AuthContext
-from src.models.people import Actor
-from src.models.staff import CheckoutBody, PortalBody, plan_view, subscription_view
+from src.models.identity import Identity
+from src.models.staff import CheckoutBody, PortalBody
+from src.models.views import plan_view, subscription_view
 from src.services.billing import BillingService
 from src.services.errors import PlatformError
 from src.services.people.access import requires_actor
@@ -24,7 +23,7 @@ BILLING_SCOPE = "billing.view"
 
 
 async def _context(
-    actor: Actor, business_id: str, businesses, registry, billings
+    actor: Identity, business_id: str, businesses, registry, billings
 ) -> tuple[AppConfig, AuthContext, BillingService]:
     if actor.business_id != business_id:
         raise PlatformError("Call with sub = businessId", 403)
@@ -38,8 +37,7 @@ async def _context(
 
 
 def _allowed(app: AppConfig, url: str) -> str:
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https") or parsed.hostname not in app.allowed_return_hosts:
+    if not app.allows_return_to(url):
         raise PlatformError(f"{url} is not on the app's allowed hosts", 422)
     return url
 
@@ -47,11 +45,12 @@ def _allowed(app: AppConfig, url: str) -> str:
 @router.get("/plans")
 async def plans(
     business_id: str, businesses: BusinessDep, registry: RegistryDep, billings: BillingsDep,
-    actor: Actor = requires_actor(Scope.HUB_BILLING_VIEW),
+    actor: Identity = requires_actor(Scope.HUB_BILLING_VIEW),
 ) -> dict:
-    """Plans on sale, the current one marked, and the subscription; all from Stripe."""
-    app, auth, billing = await _context(actor, business_id, businesses, registry, billings)
-    record = await billing.get_record(app.id, auth.tenant)
+    """Plans on sale, the current one marked, and the subscription; from Stripe, the subscription from
+    the store when it pays through one."""
+    app, _, billing = await _context(actor, business_id, businesses, registry, billings)
+    record = await businesses.record(await businesses.require(None, business_id))
     return {"plans": [plan_view(p) | {"current": p.is_current} for p in billing.list_plans(app, record)],
             "subscription": subscription_view(record)}
 
@@ -59,10 +58,13 @@ async def plans(
 @router.post("/checkout")
 async def checkout(
     business_id: str, body: CheckoutBody, businesses: BusinessDep, registry: RegistryDep,
-    billings: BillingsDep, actor: Actor = requires_actor(Scope.HUB_BILLING_UPDATE),
+    billings: BillingsDep, actor: Identity = requires_actor(Scope.HUB_BILLING_UPDATE),
 ) -> dict:
-    """A Stripe Checkout URL. 409 while a subscription is active (use the portal)."""
+    """A Stripe Checkout URL. 409 while a subscription is active (use the portal) or for a business that
+    pays through its store."""
     app, auth, billing = await _context(actor, business_id, businesses, registry, billings)
+    if (await businesses.require(None, business_id)).storePlan:
+        raise PlatformError("This business pays through its store", 409)
     urls = _allowed(app, body.successUrl), _allowed(app, body.cancelUrl)
     session = await billing.start_checkout(app, auth, CheckoutRequest(plan_code=body.plan), *urls)
     return {"url": session.url}
@@ -71,7 +73,7 @@ async def checkout(
 @router.post("/portal")
 async def portal(
     business_id: str, body: PortalBody, businesses: BusinessDep, registry: RegistryDep,
-    billings: BillingsDep, actor: Actor = requires_actor(Scope.HUB_BILLING_UPDATE),
+    billings: BillingsDep, actor: Identity = requires_actor(Scope.HUB_BILLING_UPDATE),
 ) -> dict:
     """A Stripe customer portal URL (card, invoices, cancel). 404 before the first checkout."""
     app, auth, billing = await _context(actor, business_id, businesses, registry, billings)

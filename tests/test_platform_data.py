@@ -92,7 +92,7 @@ def test_signup_creates_the_owner_and_rolls_back_on_failure(platform, client, be
     def broken(collection, row_id, data):
         raise RuntimeError("firestore down")
 
-    services.db.set_row = broken  # the business row can't be written: the new account goes again
+    services.db.upsert_live = broken  # the business row can't be written: the new account goes again
     with pytest.raises(RuntimeError):
         client.post(
             "/v1/businesses",

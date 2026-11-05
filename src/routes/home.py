@@ -5,7 +5,8 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, HTMLResponse
 
-from src.routes.recover import HEADERS, TEMPLATES, session
+from src.routes.pages import HEADERS, TEMPLATES
+from src.services.recover_session import session
 
 router = APIRouter(include_in_schema=False)
 SITE = "https://soneeva.com"

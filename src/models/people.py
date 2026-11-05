@@ -33,11 +33,16 @@ class Person(Account):
     businesses: list[str] = Field(default_factory=list)
 
 
-class OwnerAccount(BaseModel):
+class StoreOwner(BaseModel):
+    """Signing up from a store: the store vouches for them, so no password ("forgot password" sets one)."""
+
     email: str = Field(pattern=EMAIL, max_length=200)
-    password: str = Field(min_length=6, max_length=200)
     displayName: str = Field(min_length=1, max_length=120)
     username: str = Field(pattern=USERNAME)
+
+
+class OwnerAccount(StoreOwner):
+    password: str = Field(min_length=6, max_length=200)
 
 
 class AccountCreate(OwnerAccount):
@@ -101,24 +106,3 @@ class RoleCreate(BaseModel):
 
 class RolePut(BaseModel):
     scopes: list[str] = Field(max_length=200)
-
-
-class Actor(BaseModel):
-    """Who is acting: the app, the business if any, the person and (platform) their role's scopes."""
-
-    app_id: str
-    sub: str
-    uid: str
-    platform: bool = False
-    scopes: list[str] = Field(default_factory=list)
-    role: str | None = None
-    tokens: int | None = None
-    apps: list[str] = Field(default_factory=list)
-
-    @property
-    def business_id(self) -> str | None:
-        return None if self.sub == "-" else self.sub
-
-    @property
-    def all_apps(self) -> bool:
-        return self.role == "superadmin" or "payment.admin" in self.scopes

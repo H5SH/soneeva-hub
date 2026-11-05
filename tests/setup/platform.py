@@ -5,7 +5,8 @@ import json
 from datetime import UTC, datetime
 
 from src.models.advertisement import AdFields
-from src.models.platform import BusinessCreate, Caller
+from src.models.identity import Identity
+from src.models.platform import BusinessCreate
 from tests.setup.people import people
 from tests.test_plans import invoke
 
@@ -16,7 +17,7 @@ SIGNUP = BusinessCreate(ownerUid="owner1", name="Pizza Roma", type="restaurant",
 
 def business(services, subscribed: bool = False) -> str:
     invoke(services, "seed:soneeva")
-    created = asyncio.run(services.businesses.create(SIGNUP, "test"))
+    created = asyncio.run(services.businesses.signups.create(SIGNUP, "test"))
     asyncio.run(services.businesses.provisioner.run(created.id))
     if subscribed:
         subscribe(services, created.id)
@@ -61,7 +62,7 @@ def home_data(services) -> str:
     asyncio.run(services.businesses.checklist.set_state(mine, "assigned", True))
     ads = services.advertisements
     ad = asyncio.run(ads.create(AdFields(title="Summer"), "admin"))
-    asyncio.run(ads.publish(Caller(app_id="karbon-admin", sub="-"), ad["id"], [mine, "other"]))
+    asyncio.run(ads.publish(Identity(app_id="karbon-admin", sub="-"), ad["id"], [mine, "other"]))
     caller = "+31600000001"
     rows[(f"callers/{caller}/calls", "c0")] = {"caller_id": caller, "started_at": datetime.now(UTC),
                                                "duration_seconds": 120}

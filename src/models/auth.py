@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -33,6 +34,13 @@ class PublicKey(BaseModel):
     public_key: str = Field(description="SPKI PEM. The private half never reaches this service.")
     status: KeyStatus = KeyStatus.ACTIVE
     subject: str | None = Field(default=None, description="When set, tokens must carry this sub.")
+    retiring_until: datetime | None = Field(default=None, description="A retiring key stops verifying then.")
+
+    @property
+    def live(self) -> bool:
+        if self.status is KeyStatus.ACTIVE:
+            return True
+        return self.retiring_until is not None and self.retiring_until > datetime.now(UTC)
 
 
 class Credentials(BaseModel):
@@ -53,7 +61,7 @@ class Credentials(BaseModel):
     def key(self, kid: str | None) -> PublicKey | None:
         """Match on kid when the token carries one, else the single active key."""
         if kid:
-            return next((k for k in self.keys if k.kid == kid), None)
+            return next((k for k in self.keys if k.kid == kid and k.live), None)
         active = [k for k in self.keys if k.status is KeyStatus.ACTIVE]
         return active[0] if len(active) == 1 else None
 

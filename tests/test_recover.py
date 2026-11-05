@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from main import attach, create_app
 from src.routes import recover
+from src.services import recover_session
 
 SECRET = "test-secret-" * 4
 PEOPLE = {"boss": "superadmin", "sales1": "sales", "gone": "superadmin"}
@@ -76,8 +77,8 @@ def test_the_cookie_is_short_signed_and_locked_down(client):
 
 @pytest.mark.parametrize("cookie", [
     f"boss.{int(time.time()) + 600}.{'0' * 64}",
-    f"boss.{int(time.time()) - 1}.{recover._sign(SECRET, f'boss.{int(time.time()) - 1}')}",
-    f"sales1.{int(time.time()) + 600}.{recover._sign(SECRET, f'sales1.{int(time.time()) + 600}')}",
+    f"boss.{int(time.time()) - 1}.{recover_session.sign(SECRET, f'boss.{int(time.time()) - 1}')}",
+    f"sales1.{int(time.time()) + 600}.{recover_session.sign(SECRET, f'sales1.{int(time.time()) + 600}')}",
 ])
 def test_forged_expired_or_roleless_cookies_are_signed_out(client, services, cookie):
     client.cookies.set("recover", cookie, path="/")
@@ -109,7 +110,7 @@ def test_only_hand_rotated_tools_are_listed_and_rotated(client, services):
     assert kid in response.text
     [entry] = [row for (table, _), row in services.db.rows.items() if table == "audit"]
     assert entry["action"] == "key.rotate" and entry["by"] == "boss"
-    assert entry["data"] == {"toolId": "karbon-admin", "kid": kid, "via": "recover"}
+    assert entry["data"] == {"toolId": "karbon-admin", "kid": kid, "via": "recover", "revoke": False}
 
 
 def test_sign_out_ends_the_session(client):

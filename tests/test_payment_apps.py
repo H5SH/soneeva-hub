@@ -65,7 +65,7 @@ def test_plans_create_update_status_and_delete(client, bearer, services):
     assert saved.status_code == 200 and saved.json()["priceId"] and saved.json()["active"] is True
     kept = client.put(url, json={"name": "Team v1"}, headers=headers()).json()
     assert kept["priceId"] == saved.json()["priceId"] and kept["amount"] == 4900
-    assert kept["productId"] == "prod_soneeva_team" and kept["features"] == []
+    assert kept["productId"] == "prod_soneeva_team" and kept["features"] == ["Two numbers"]
     again = client.put(url, json={"name": "Team", "amount": 5900}, headers=headers()).json()
     assert again["priceId"] != kept["priceId"] and kept["priceId"] in services.payment.live.archived
     png = b"\x89PNG\r\n\x1a\n" + b"0" * 16

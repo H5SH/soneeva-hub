@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from src.db import DELETE, Database, Increment, Query, Transaction, Write
-from src.models.admin import person_scopes
 from src.models.db import DELETED_AT, DELETED_FLAG, UPDATED_AT, Default, assignment_id
 
 #: (current tokens of the target, giver's balance) -> how much the giver's balance moves.
@@ -25,7 +24,7 @@ def read_tokens(data: dict[str, Any] | None) -> int | None:
         return 0
 
 
-def _strings(value: Any) -> list[str]:
+def strings(value: Any) -> list[str]:
     return [s for s in value if isinstance(s, str)] if isinstance(value, list) else []
 
 
@@ -33,8 +32,8 @@ def _profile(data: dict[str, Any]) -> dict[str, Any]:
     role, phone = data.get("role"), data.get("phone")
     return {"role": role if isinstance(role, str) and role else None, "tokens": read_tokens(data),
             "phone": phone if isinstance(phone, str) else "",
-            "disabled": data.get("disabled") is True, "apps": _strings(data.get("apps")),
-            "businesses": _strings(data.get("businesses"))}
+            "disabled": data.get("disabled") is True, "apps": strings(data.get("apps")),
+            "businesses": strings(data.get("businesses"))}
 
 
 class People:
@@ -44,7 +43,7 @@ class People:
     async def profile(self, uid: str) -> dict[str, Any] | None:
         """`users/{uid}`: role, tokens (None = no limit), disabled, apps, businesses; None without a doc."""
         data = await self._db.get(Default.USERS, uid)
-        return _profile(data) if data is not None else None
+        return _profile(data) if data is not None and not data.get(DELETED_FLAG) else None
 
     async def profiles(self, uids: list[str]) -> dict[str, dict[str, Any]]:
         return {uid: _profile(d) for uid, d in (await self._db.get_all(Default.USERS, uids)).items()}
@@ -108,7 +107,7 @@ class People:
     async def roles(self) -> dict[str, list[str]]:
         """`roles/{id}` → person scopes: console ids (`*` as stored), `payment.*`, `platform.*`."""
         docs = await self._db.query(Query(Default.ROLES))
-        return {d.id: person_scopes(d.data.get("scopes")) for d in docs if not d.data.get(DELETED_FLAG)}
+        return {d.id: d.data.get("scopes") or [] for d in docs if not d.data.get(DELETED_FLAG)}
 
     async def save_roles(self, roles: dict[str, list[str] | None]) -> None:
         """Replace each role's scopes; None removes the role."""

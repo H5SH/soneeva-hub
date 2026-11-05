@@ -1528,5 +1528,58 @@
     "plan": "per-minute",
     "periodEnd": "2026-11-01T00:00:00+00:00",
     "test": false
+  },
+  "storeRef": {
+    "platform": "shopify",
+    "storeId": "rosa.myshopify.com"
+  },
+  "storeSignup": {
+    "owner": {
+      "email": "rosa@example.com",
+      "displayName": "Rosa",
+      "username": "rosa"
+    },
+    "store": {
+      "platform": "shopify",
+      "storeId": "rosa.myshopify.com"
+    },
+    "name": "Rosa",
+    "type": "shop",
+    "country": "NL",
+    "timezone": "Europe/Amsterdam",
+    "languages": [
+      "nl"
+    ],
+    "branchCount": 1,
+    "phone": "",
+    "email": "rosa@example.com",
+    "address": "",
+    "consentAt": "2026-11-05T12:00:00Z"
+  },
+  "storeSignIn": {
+    "businessId": "pizzaroma1",
+    "status": "active",
+    "provisioned": true,
+    "owner": {
+      "uid": "owner1",
+      "email": "rosa@example.com",
+      "displayName": "Rosa",
+      "disabled": false,
+      "username": "rosa",
+      "businessId": "pizzaroma1",
+      "createdAt": null,
+      "lastSignInAt": null
+    }
+  },
+  "storePlan": {
+    "code": "per-minute",
+    "source": "shopify",
+    "subscriptionId": "gid://shopify/AppSubscription/1",
+    "status": "active",
+    "usageLineItemId": "gid://shopify/AppSubscriptionLineItem/1",
+    "at": "2026-11-05T12:00:00+00:00"
+  },
+  "storeEvent": {
+    "at": "2026-11-05T12:00:00+00:00"
   }
 }

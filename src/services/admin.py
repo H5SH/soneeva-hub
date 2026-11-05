@@ -9,10 +9,10 @@ from typing import Any
 from urllib.parse import urlparse
 
 from src.db import Database
-from src.models.admin import Principal
 from src.models.app import AppConfig
 from src.models.auth import Application, ApplicationStatus
 from src.models.db import Default, to_doc
+from src.models.identity import Identity
 from src.models.mode import Mode, staging_id
 from src.models.subscription import GatewaySubscription
 from src.payment import PaymentGateway
@@ -21,7 +21,7 @@ from src.services.modes import ByMode
 from src.services.plans import PlanService
 from src.services.tokens.generate import rotate
 from src.services.tokens.keys import KeyStore
-from src.services.tools import RESERVED, check_new_id
+from src.services.tools import check_new_id
 from src.services.webhook import WEBHOOK_EVENTS
 from src.utils import slug
 
@@ -56,7 +56,7 @@ class AdminService:
     async def _save_app(self, app_id: str, fields: dict[str, Any]) -> None:
         """Write to apps/{id} (camelCase) and drop every cached copy: the verifier's keys and
         the AppRegistry's config. Every write goes through here so a new one cannot forget."""
-        await self._db.set_row(Default.APPS, app_id, to_doc(fields))
+        await self._db.upsert_live(Default.APPS, app_id, to_doc(fields))
         self._dropped(app_id)
 
     def _dropped(self, app_id: str) -> None:
@@ -65,12 +65,10 @@ class AdminService:
             self._forget(app_id)
 
     # ── apps ────────────────────────────────────────────────────────────────
-    async def list_apps(self, user: Principal, query: str = "") -> list[tuple[AppConfig, Application]]:
+    async def list_apps(self, user: Identity, query: str = "") -> list[tuple[AppConfig, Application]]:
         """Apps the person may see and `query` matches (id, name or tag), each with its credentials."""
         rows = await self._db.get_rows(Default.APPS)
-        not_apps = RESERVED | {r["id"] for r in await self._db.get_rows(Default.TOOLS)}
-        visible = [r for r in rows if r.get("id") and r["id"] not in not_apps
-                   and (user.sees_all or r["id"] in user.apps)]
+        visible = [r for r in rows if user.sees_all or r["id"] in user.apps]
         found = [(AppConfig.of(r["id"], r, await self._plans[Mode.LIVE].for_app(r["id"])), Application(**r))
                  for r in visible]
         return [(config, creds) for config, creds in found if matches(config, query)]
@@ -103,7 +101,9 @@ class AdminService:
         await self._save_app(
             app_id,
             config.model_dump(mode="json", exclude={"id", "plans"})
-            | {"status": ApplicationStatus.ACTIVE, "keys": []},
+            | {"status": ApplicationStatus.ACTIVE, "keys": [], "scopes": [],  # a deleted app's row may remain
+               "stripe_webhook_secret": None, "stripe_webhook_endpoint_id": None,
+               "staging_webhook_secret": None, "staging_webhook_endpoint_id": None},
         )
         return config
 
@@ -128,12 +128,16 @@ class AdminService:
                 "in STRIPE_WEBHOOK_SECRET instead.")
         if not base_url.startswith("https://"):
             raise AdminError(f"SERVICE_BASE_URL is {base_url!r}; Stripe requires https for a webhook.")
-        if not await self.get_app(app_id):
+        application = await self.get_application(app_id)
+        if not application:
             raise AdminError("That app no longer exists.")
         test = mode is Mode.TEST
         url = f"{base_url.rstrip('/')}/webhooks/stripe/{staging_id(app_id) if test else app_id}"
         endpoint_id, secret = await self._payment[mode].create_webhook_endpoint(url, list(WEBHOOK_EVENTS))
         prefix = "staging" if test else "stripe"
+        previous = getattr(application, f"{prefix}_webhook_endpoint_id")
+        if previous:
+            await self._payment[mode].delete_webhook_endpoint(previous)
         await self._save_app(
             app_id, {f"{prefix}_webhook_secret": secret, f"{prefix}_webhook_endpoint_id": endpoint_id})
         return endpoint_id, url
@@ -159,11 +163,11 @@ class AdminService:
         await self._db.delete_row(Default.APPS, app_id)
         self._dropped(app_id)
 
-    async def rotate_key(self, app_id: str) -> tuple[str, str]:
+    async def rotate_key(self, app_id: str, revoke: bool = False) -> tuple[str, str]:
         """Returns (kid, private PEM). The private half is shown once and never stored."""
         application = await self.get_application(app_id)
         if not application:
             raise AdminError("That app no longer exists.")
-        keys, kid, private_pem = rotate(application.keys)
+        keys, kid, private_pem = rotate(application.keys, revoke)
         await self._save_app(app_id, {"keys": [k.model_dump(mode="json") for k in keys]})
         return kid, private_pem

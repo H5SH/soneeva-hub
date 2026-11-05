@@ -6,11 +6,11 @@ separately. Firestore's locations are listed live, and kept for `locationsCacheS
 """
 
 import logging
-import time
 from typing import Any
 
 from src.db import Database, DatabaseError
 from src.services.errors import PlatformError
+from src.services.ttl import MISSING, Ttl
 from src.tunables import tunable
 
 logger = logging.getLogger(__name__)
@@ -36,14 +36,13 @@ def region_location(key: str) -> str | None:
 class DataRegions:
     def __init__(self, db: Database) -> None:
         self._db = db
-        self._locations: list[dict[str, str]] = []
-        self._listed_at = 0.0
+        self._locations = Ttl(tunable("dataRegions.locationsCacheSeconds"))
 
     async def locations(self) -> list[dict[str, str]]:
-        stale = time.monotonic() - self._listed_at > tunable("dataRegions.locationsCacheSeconds")
-        if not self._locations or stale:
-            self._locations, self._listed_at = await self._db.locations(), time.monotonic()
-        return self._locations
+        listed = self._locations.get("all")
+        if listed is MISSING:
+            listed = self._locations.put("all", await self._db.locations())
+        return listed
 
     async def offered(self) -> dict[str, Any]:
         """What sign-up offers: the shared regions (with the countries that pick each) and every location."""

@@ -47,10 +47,14 @@
       {"id": "voice.edit", "group": "agent"},
       {"id": "agent.engine.edit", "group": "agent"},
       {"id": "prompt.edit", "group": "agent"},
-      {"id": "profile.edit", "group": "profile"}
+      {"id": "profile.edit", "group": "profile"},
+      {"id": "connections.view", "group": "connections"},
+      {"id": "connections.edit", "group": "connections"}
     ]
   },
   "plans": {"currency": "usd"},
+  "stores": {"shopifyApiVersion": "2026-10", "chargeGraceSeconds": 86400},
+  "keys": {"retiringSeconds": 3600},
   "stripe": {"plansCacheSeconds": 60, "tenantCacheSeconds": 60, "searchLagSeconds": 600, "eventDedupeSeconds": 86400},
   "callers": {"pageSize": 20, "maxPageSize": 100, "maxName": 80, "maxTags": 10, "maxTagLength": 30, "maxBlockedReason": 200},
   "businesses": {
@@ -59,7 +63,7 @@
     "indexPollSeconds": 15,
     "types": [
       "restaurant", "cafe", "takeaway", "bakery", "clinic", "dentist", "salon", "spa", "hotel",
-      "pharmacy", "car-service", "vet", "gym", "retail", "other"
+      "pharmacy", "car-service", "vet", "gym", "retail", "shop", "other"
     ],
     "roles": {
       "owner": {"name": "Owner", "scopes": ["*"]}

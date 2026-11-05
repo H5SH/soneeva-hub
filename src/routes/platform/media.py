@@ -6,26 +6,20 @@ from fastapi import APIRouter, Request, Response
 
 from src.dependencies import BusinessDep, IvrDep, MediaDep, StorageDep
 from src.models.admin import Scope
-from src.models.people import Actor
+from src.models.identity import Identity
 from src.services.errors import PlatformError
-from src.services.media import Who, audio_target, check
+from src.services.media import audio_target, check
 from src.services.people.access import requires_actor
-from src.services.tokens.staff import find_principal
-from src.tunables import tunable
+from src.services.state import services_of
+from src.services.tokens.staff import with_payment
+from src.services.uploads import read_file
 
 router = APIRouter(prefix="/v1/media", tags=["media"])
 
-SIGNATURES = {
-    "image/png": lambda b: b.startswith(b"\x89PNG"),
-    "image/jpeg": lambda b: b.startswith(b"\xff\xd8\xff"),
-    "image/webp": lambda b: b[:4] == b"RIFF" and b[8:12] == b"WEBP",
-    "application/pdf": lambda b: b.startswith(b"%PDF"),
-}
 
-
-async def _who(request: Request, actor: Actor) -> Who:
-    staff = None if actor.business_id else await find_principal(request.app.state, actor.uid)
-    return Who(actor, staff)
+async def _who(request: Request, actor: Identity) -> Identity:
+    state = services_of(request)
+    return actor if actor.business_id else await with_payment(state.db, state.roles, actor)
 
 
 def _quoted(etag: str) -> str:
@@ -39,27 +33,10 @@ def _matches(header: str | None, etag: str) -> bool:
     return "*" in tags or etag.removeprefix("W/") in tags
 
 
-async def read_file(request: Request, settings: str = "media") -> tuple[bytes, str]:
-    """The raw body: one of `{settings}.types` by header and first bytes, at most `{settings}.maxBytes`."""
-    kind = request.headers.get("content-type", "").split(";")[0].strip().lower()
-    kinds = tunable(f"{settings}.types")
-    if kind not in kinds or kind not in SIGNATURES:
-        raise PlatformError(f"Send {', '.join(kinds)}", 415)
-    limit = tunable(f"{settings}.maxBytes")
-    data = bytearray()
-    async for chunk in request.stream():
-        data.extend(chunk)
-        if len(data) > limit:
-            raise PlatformError(f"Files are at most {limit} bytes", 413)
-    if not data or not SIGNATURES[kind](bytes(data)):
-        raise PlatformError(f"Not a {kind} file", 415)
-    return bytes(data), kind
-
-
 @router.get("/{path:path}")
 async def get_media(
     path: str, request: Request, rules: MediaDep, files: StorageDep,
-    actor: Actor = requires_actor(Scope.HUB_MEDIA_VIEW),
+    actor: Identity = requires_actor(Scope.HUB_MEDIA_VIEW),
 ) -> Response:
     await check(rules, await _who(request, actor), path, edit=False)
     found = await files.get(path)
@@ -76,7 +53,7 @@ async def get_media(
 @router.put("/{path:path}")
 async def put_media(
     path: str, request: Request, rules: MediaDep, files: StorageDep,
-    actor: Actor = requires_actor(Scope.HUB_MEDIA_UPDATE),
+    actor: Identity = requires_actor(Scope.HUB_MEDIA_UPDATE),
 ) -> dict:
     await check(rules, await _who(request, actor), path, edit=True)
     if audio_target(path):
@@ -89,7 +66,7 @@ async def put_media(
 @router.delete("/{path:path}")
 async def delete_media(
     path: str, request: Request, rules: MediaDep, files: StorageDep, businesses: BusinessDep,
-    ivr: IvrDep, actor: Actor = requires_actor(Scope.HUB_MEDIA_UPDATE),
+    ivr: IvrDep, actor: Identity = requires_actor(Scope.HUB_MEDIA_UPDATE),
 ) -> dict:
     """A recording goes through its own rules: an old version, or the whole thing while unused."""
     await check(rules, await _who(request, actor), path, edit=True)

@@ -1,5 +1,5 @@
 """Platform people (/v1/people): one record per person, holding their role, payment apps, business
-limit, token allowance and who looks after them. Every method takes the resolved Actor and refuses with
+limit, token allowance and who looks after them. Every method takes the resolved Identity and refuses with
 rules.Refused; nobody grants what they don't hold or edits themselves into more power."""
 
 import asyncio
@@ -7,24 +7,26 @@ import secrets
 
 from src.auth import AccountError, AccountProvider
 from src.models.admin import SERVICEPERSON
-from src.models.people import Actor, Person, PersonCreate, PersonPatch
+from src.models.identity import Identity
+from src.models.people import Person, PersonCreate, PersonPatch
 from src.models.platform import Serviceperson
 from src.services.people.rules import (
     PROFILE_WRITE,
     Refused,
     assignable,
     covers,
-    held,
     holds,
     is_serviceperson_role,
-    plan_tokens,
-    reach,
+    scope_reach,
 )
 from src.services.people.store import People
+from src.services.people.tokens import held, plan_tokens
 from src.tunables import tunable
 
 SELF_FIELDS = {"displayName", "password", "phone"}
 ACCOUNT_FIELDS = {"email", "password", "displayName", "username"}
+#: What goes to Firebase Auth, on top of the claims `username` is.
+FIREBASE_FIELDS = (ACCOUNT_FIELDS - {"username"}) | {"disabled"}
 #: On the person's record, not the account; changed with Users.Write.
 CONTACT_FIELDS = {"phone"}
 ACCESS_FIELDS = {"role", "apps", "businesses"}
@@ -49,10 +51,10 @@ class PeopleService:
         return out
 
     @staticmethod
-    def _may_read(actor: Actor) -> bool:
-        return actor.platform and any(reach(actor.scopes, s) for s in tunable("people.readScopes"))
+    def _may_read(actor: Identity) -> bool:
+        return actor.platform and any(scope_reach(actor.scopes, s) for s in tunable("people.readScopes"))
 
-    async def page(self, actor: Actor, token: str | None) -> tuple[list[Person], str | None]:
+    async def page(self, actor: Identity, token: str | None) -> tuple[list[Person], str | None]:
         if not self._may_read(actor):
             raise Refused("You can't see platform people")
         accounts, nxt = await self._accounts.page(token)
@@ -82,24 +84,30 @@ class PeopleService:
                               email=a.email, active=not (a.disabled or found[a.uid]["disabled"]))
                 for a in accounts if a and not a.businessId]
 
-    async def get(self, actor: Actor, uid: str) -> Person:
+    async def get(self, actor: Identity, uid: str) -> Person:
         if uid != actor.uid and not self._may_read(actor):
             raise Refused("No such person", 404)
         return await self.load(uid)
 
     # ── rules ────────────────────────────────────────────────────────────────
     @staticmethod
-    def _can_on(actor: Actor, scope: str, target: Person) -> None:
-        r = reach(actor.scopes, scope)
+    def _can_on(actor: Identity, scope: str, target: Person) -> None:
+        scope_held = scope_reach(actor.scopes, scope)
         mine = target.uid == actor.uid or actor.uid in target.servicepersons
-        if r == "all" or (r == "assigned" and mine):
+        if scope_held == "all" or (scope_held == "assigned" and mine):
             return
         raise Refused(f"Requires {scope} on this person")
 
-    async def _target(self, actor: Actor, uid: str) -> Person:
+    async def _target(self, actor: Identity, uid: str) -> Person:
         if not actor.platform:
             raise Refused("Only platform people manage platform people")
         return await self.load(uid)
+
+    async def _may_act_as(self, actor: Identity, target: Person) -> None:
+        """Whoever sets someone's sign-in can become them, so only for a role the actor could give."""
+        if target.uid != actor.uid and target.role \
+                and target.role not in assignable(actor.scopes, await self.store.roles()):
+            raise Refused(f"You can't change the sign-in of someone with the {target.role} role")
 
     async def _servicepersons(self, uids: list[str]) -> None:
         roles = await self.store.roles()
@@ -109,7 +117,7 @@ class PeopleService:
         if unknown:
             raise Refused(f"Not a serviceperson: {', '.join(unknown)}", 422)
 
-    async def _give_role(self, actor: Actor, role: str, current: str | None = None) -> None:
+    async def _give_role(self, actor: Identity, role: str, current: str | None = None) -> None:
         roles = await self.store.roles()
         if role not in roles:
             raise Refused(f"There is no role called {role}", 422)
@@ -118,12 +126,12 @@ class PeopleService:
             raise Refused(f"You can't give the {role} role")
 
     @staticmethod
-    def _give_apps(actor: Actor, apps: list[str]) -> None:
+    def _give_apps(actor: Identity, apps: list[str]) -> None:
         if not actor.all_apps and not set(apps) <= set(actor.apps):
             raise Refused("You can't give apps you aren't on")
 
     # ── writing ──────────────────────────────────────────────────────────────
-    async def create(self, actor: Actor, body: PersonCreate) -> tuple[Person, str | None]:
+    async def create(self, actor: Identity, body: PersonCreate) -> tuple[Person, str | None]:
         """Returns the person and, when no password was given, a link to set one (shown once)."""
         role, servicepersons, tokens = await self._plan_create(actor, body)
         email = body.email.strip().lower()
@@ -138,20 +146,20 @@ class PeopleService:
                                                 "disabled": False})
             if servicepersons:
                 await self.store.set_assignment(account.uid, servicepersons)
-            r = reach(actor.scopes, "Users.Tokens.Write")
-            await self.store.transfer(account.uid, tokens, actor.uid if r == "assigned" else None,
-                                      plan_tokens(r, False, tokens))
+            token_reach = scope_reach(actor.scopes, "Users.Tokens.Write")
+            await self.store.transfer(account.uid, tokens, actor.uid if token_reach == "assigned" else None,
+                                      plan_tokens(token_reach, False, tokens))
         except Exception:
             await self._forget(account.uid)
             raise
         link = None if body.password else await self._link(email)
         return await self.load(account.uid), link
 
-    async def _plan_create(self, actor: Actor, body: PersonCreate):
-        if not actor.platform or not reach(actor.scopes, "Users.Create"):
+    async def _plan_create(self, actor: Identity, body: PersonCreate):
+        if not actor.platform or not scope_reach(actor.scopes, "Users.Create"):
             raise Refused("You can't create people")
         roles = await self.store.roles()
-        may_set = reach(actor.scopes, "Users.Role.Write") is not None
+        may_set = scope_reach(actor.scopes, "Users.Role.Write") is not None
         role = body.role if may_set and body.role else None
         if role is None:
             options = sorted(assignable(actor.scopes, roles), key=lambda r: len(roles[r]))
@@ -167,8 +175,8 @@ class PeopleService:
         servicepersons = given if may_assign else [actor.uid]
         if given and servicepersons == given:
             await self._servicepersons(given)
-        can_give = reach(actor.scopes, "Users.Tokens.Write") is not None
-        tokens = (body.tokens if "tokens" in body.model_fields_set else 0) if can_give else 0
+        may_give = scope_reach(actor.scopes, "Users.Tokens.Write") is not None
+        tokens = body.tokens if may_give and "tokens" in body.model_fields_set else 0
         return role, servicepersons, tokens
 
     async def _link(self, email: str) -> str | None:
@@ -183,12 +191,12 @@ class PeopleService:
         await self._accounts.delete(uid)
 
     @staticmethod
-    def _edits_self(actor: Actor, uid: str, fields: dict) -> bool:
+    def _edits_self(actor: Identity, uid: str, fields: dict) -> bool:
         """Your own name and password, with Profile.Write."""
         return (uid == actor.uid and bool(fields) and set(fields) <= SELF_FIELDS and actor.platform
                 and holds(actor.scopes, PROFILE_WRITE))
 
-    async def _check_update(self, actor: Actor, uid: str, fields: dict) -> Person:
+    async def _check_update(self, actor: Identity, uid: str, fields: dict) -> Person:
         target = await self._target(actor, uid)
         self._can_on(actor, "Users.View", target)
         if (ACCOUNT_FIELDS | CONTACT_FIELDS) & set(fields):
@@ -197,6 +205,8 @@ class PeopleService:
             self._can_on(actor, "Users.Disable", target)
             if uid == actor.uid:
                 raise Refused("You can't disable yourself")
+        if {"password", "email", "disabled"} & set(fields):
+            await self._may_act_as(actor, target)
         changed = {k for k in ACCESS_FIELDS & set(fields) if fields[k] != getattr(target, k)}
         if changed:
             self._can_on(actor, "Users.Role.Write", target)
@@ -208,14 +218,14 @@ class PeopleService:
             self._give_apps(actor, fields["apps"])
         return target
 
-    async def update(self, actor: Actor, uid: str, patch: PersonPatch) -> tuple[Person, int]:
+    async def update(self, actor: Identity, uid: str, patch: PersonPatch) -> tuple[Person, int]:
         fields = patch.model_dump(exclude_unset=True, exclude_none=True)
         own = self._edits_self(actor, uid, fields)
         target = None if own else await self._check_update(actor, uid, fields)
         try:
             if "username" in fields:
                 await self._accounts.set_claims(uid, {"username": fields["username"]})
-            account = {k: v for k, v in fields.items() if k in ACCOUNT_FIELDS - {"username"} | {"disabled"}}
+            account = {k: v for k, v in fields.items() if k in FIREBASE_FIELDS}
             if account:
                 await self._accounts.update(uid, account)
         except AccountError as error:
@@ -232,36 +242,38 @@ class PeopleService:
                 dropped = await self.store.revoke_all(uid)
         return await self.load(uid), dropped
 
-    async def delete(self, actor: Actor, uid: str) -> int:
+    async def delete(self, actor: Identity, uid: str) -> int:
         target = await self._target(actor, uid)
         self._can_on(actor, "Users.Delete", target)
         if uid == actor.uid:
             raise Refused("You can't delete yourself")
+        await self._may_act_as(actor, target)
         refund = held(target.tokens) if actor.tokens is not None and actor.uid in target.servicepersons else 0
         await self._forget(uid)
         await self.store.add_tokens(actor.uid, refund)
         return refund
 
-    async def reset(self, actor: Actor, uid: str, send: bool) -> dict:
+    async def reset(self, actor: Identity, uid: str, send: bool) -> dict:
         target = await self._target(actor, uid)
         self._can_on(actor, "Users.ResetPassword", target)
         try:
             if send:
                 await self._accounts.send_reset(target.email)
                 return {"sent": True}
+            await self._may_act_as(actor, target)
             return {"link": await self._accounts.reset_link(target.email)}
         except AccountError as error:
             raise Refused(str(error), error.status) from error
 
-    async def set_tokens(self, actor: Actor, uid: str, tokens: int | None) -> Person:
+    async def set_tokens(self, actor: Identity, uid: str, tokens: int | None) -> Person:
         target = await self._target(actor, uid)
         self._can_on(actor, "Users.Tokens.Write", target)
-        r = reach(actor.scopes, "Users.Tokens.Write")
-        await self.store.transfer(uid, tokens, actor.uid if r == "assigned" else None,
-                                  plan_tokens(r, uid == actor.uid, tokens))
+        token_reach = scope_reach(actor.scopes, "Users.Tokens.Write")
+        await self.store.transfer(uid, tokens, actor.uid if token_reach == "assigned" else None,
+                                  plan_tokens(token_reach, uid == actor.uid, tokens))
         return await self.load(uid)
 
-    async def assign(self, actor: Actor, uid: str, servicepersons: list[str]) -> Person:
+    async def assign(self, actor: Identity, uid: str, servicepersons: list[str]) -> Person:
         target = await self._target(actor, uid)
         if not covers(actor.scopes, "Users.Assign.Write"):
             raise Refused("You can't change who looks after this person")

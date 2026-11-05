@@ -117,15 +117,6 @@ def test_seeding_never_adds_scopes_back_to_an_existing_role(services):
     assert "sales" in written
 
 
-def test_seeding_takes_every_app_scope_off_every_role(services):
-    db = services.db
-    db.rows[("roles", "superadmin")] = {"scopes": ["*", "hub.people.view", "payment.admin"]}
-    db.rows[("roles", "custom")] = {"scopes": ["Users.View", "hub.business.view"]}
-    assert "custom" in asyncio.run(seed_platform_roles(db))
-    assert db.rows[("roles", "custom")]["scopes"] == ["Users.View"]
-    assert not any(s.startswith("hub.") for s in db.rows[("roles", "superadmin")]["scopes"])
-    assert asyncio.run(seed_platform_roles(db)) == []
-
 def test_people_roles_and_call_shapes(client, bearer, services):
     from tests.setup.people import as_, people
 

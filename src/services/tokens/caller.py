@@ -6,12 +6,14 @@ names one (`uid`, with sub `-`). A business subject only ever reaches its own bu
 
 from fastapi import Depends, HTTPException, Request, status
 
+from src.db import Database
 from src.models.admin import Scope, UserRecord
 from src.models.auth import Audience
 from src.models.db import Default
+from src.models.identity import Identity
 from src.models.mode import STAGING_ONLY, Mode, staged
-from src.models.platform import Caller
 from src.services.people.rules import business_reach, holds
+from src.services.state import services_of
 from src.services.tokens.verify import AuthError
 
 #: The platform scopes (any one) a person's role needs for each app scope; `*` covers them all.
@@ -38,13 +40,13 @@ def person_allows(role: list[str], scope: str) -> bool:
     return any(holds(role, p) for p in PERSON_SCOPES.get(scope, ()))  # type: ignore[call-overload]
 
 
-async def verify(request: Request) -> Caller:
+async def verify(request: Request) -> Identity:
     """The token alone: the app's own scopes, not yet narrowed to any person."""
     header = request.headers.get("authorization", "")
     scheme, _, token = header.partition(" ")
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing bearer token")
-    state = request.app.state
+    state = services_of(request)
     try:
         claims = await state.verifier.verify(token, Audience.HUB)
     except AuthError as error:
@@ -52,8 +54,8 @@ async def verify(request: Request) -> Caller:
 
     credentials = await state.keys.get(claims.iss)
     app_id, mode = staged(claims.iss)
-    caller = Caller(app_id=app_id, mode=mode, sub=claims.sub, uid=claims.uid,
-                    scopes=sorted(credentials.scopes if credentials else []))
+    caller = Identity(app_id=app_id, mode=mode, sub=claims.sub, uid=claims.uid,
+                    app_scopes=sorted(credentials.scopes if credentials else []))
     if mode is Mode.TEST and caller.business_id:
         row = await state.db.get_row(Default.BUSINESSES, caller.business_id)
         if row and not row.get("test"):
@@ -61,28 +63,34 @@ async def verify(request: Request) -> Caller:
     return caller
 
 
-async def _with_person(request: Request, caller: Caller) -> Caller:
+async def enabled_person(db: Database, uid: str) -> UserRecord | None:
+    """The platform person when they exist and aren't disabled: every kind of caller reads them here."""
+    row = await db.get_row(Default.USERS, uid)
+    person = UserRecord(**(row | {"uid": uid})) if row else None
+    return None if not person or person.disabled else person
+
+
+async def _with_person(request: Request, caller: Identity) -> Identity:
     """The named person's role, business limit and business reach; 403 when unknown or disabled."""
-    state = request.app.state
-    row = await state.db.get_row(Default.USERS, caller.uid)
-    person = UserRecord(**(row | {"uid": caller.uid})) if row else None
-    if not person or person.disabled:
+    state = services_of(request)
+    person = await enabled_person(state.db, caller.uid or "")
+    if not person:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Unknown or disabled person")
     role = await state.roles.raw(person.role)
-    caller.businesses, caller.person_scopes = person.businesses, role
+    caller.businesses, caller.role_scopes = person.businesses, role
     caller.assigned_only = business_reach(role) == "assigned"
     return caller
 
 
-async def authenticate(request: Request) -> Caller:
+async def authenticate(request: Request) -> Identity:
     caller = await verify(request)
     if caller.uid and caller.sub == "-":
         await _with_person(request, caller)
-        caller.scopes = [s for s in caller.scopes if person_allows(caller.person_scopes or [], s)]
+        caller.app_scopes = [s for s in caller.app_scopes if person_allows(caller.role_scopes or [], s)]
     return caller
 
 
-async def person(request: Request) -> Caller:
+async def person(request: Request) -> Identity:
     """A platform person (sub `-` and their uid); the app's scopes stay unnarrowed, the route checks each."""
     caller = await verify(request)
     if caller.business_id or not caller.uid:
@@ -91,8 +99,8 @@ async def person(request: Request) -> Caller:
 
 
 def requires_caller(scope: Scope):
-    async def check(caller: Caller = Depends(authenticate)) -> Caller:
-        if str(scope) not in caller.scopes:
+    async def check(caller: Identity = Depends(authenticate)) -> Identity:
+        if str(scope) not in caller.app_scopes:
             raise HTTPException(status.HTTP_403_FORBIDDEN, f"Requires {scope}")
         return caller
 

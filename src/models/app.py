@@ -67,17 +67,19 @@ class AppConfig(BaseModel):
     def of(cls, app_id: str, row: dict[str, Any], plans: list[Plan]) -> "AppConfig":
         return cls.model_validate(row | {"id": app_id, "plans": plans})
 
+    def allows_return_to(self, url: str) -> bool:
+        parsed = urlparse(url)
+        return parsed.scheme in ("http", "https") and parsed.hostname in self.allowed_return_hosts
+
     def resolve_return_url(self, candidate: str | None) -> str:
-        """A caller-supplied redirect when allow-listed, else the app's own landing page: `/return`
-        and `/cancel` are reachable without a token, so anything else would be an open redirect."""
+        """A caller-supplied redirect when allow-listed, else the app's own landing page: anything else
+        would be an open redirect."""
         if not candidate:
             return self.return_url or "/"
         parsed = urlparse(candidate)
         if not parsed.scheme and not parsed.netloc:
             return candidate if candidate.startswith("/") else self.return_url or "/"
-        if parsed.scheme in ("http", "https") and parsed.hostname in self.allowed_return_hosts:
-            return candidate
-        return self.return_url or "/"
+        return candidate if self.allows_return_to(candidate) else self.return_url or "/"
 
     def plan(self, code: str | None) -> Plan | None:
         return next((p for p in self.plans if p.code == code), None) if code else None

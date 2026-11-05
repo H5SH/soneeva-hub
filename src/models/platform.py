@@ -1,12 +1,15 @@
 """Shapes of the platform API (/v1) and the documents behind it. camelCase, per the contract."""
 
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.models.hours import WeekHours
 from src.models.mode import Mode
-from src.models.people import USERNAME, OwnerAccount
+from src.models.people import USERNAME, OwnerAccount, StoreOwner
+from src.models.stores import StorePlan, StoreRef
 
 
 class BusinessStatus(StrEnum):
@@ -17,80 +20,15 @@ class BusinessStatus(StrEnum):
     DELETED = "deleted"
 
 
-class Caller(BaseModel):
-    """A verified /v1 caller: the app, the business it acts for, and the person if any."""
-
-    app_id: str
-    sub: str
-    uid: str | None = None
-    mode: Mode = Field(default=Mode.LIVE, description="test when the token's iss is `{appId}_staging`.")
-    scopes: list[str] = Field(default_factory=list)
-    businesses: list[str] = Field(default_factory=list, description="Person limit; empty is none.")
-    person_scopes: list[str] | None = Field(default=None, description="The platform person's role, raw.")
-    assigned_only: bool = Field(default=False, description="Businesses.Access alone: only theirs.")
-
-    @property
-    def business_id(self) -> str | None:
-        return None if self.sub == "-" else self.sub
-
-    def assigned_to(self, business: "Business") -> bool:
-        return bool(self.uid) and self.uid == business.servicepersonUid
-
-    def reaches(self, business: "Business") -> bool:
-        """A staging caller only ever reaches test businesses. A platform person reaches a sandbox twin
-        as they reach its live business (its serviceperson and business limit are the live one's)."""
-        if self.mode is Mode.TEST and not business.test:
-            return False
-        if self.business_id:
-            return self.business_id == business.id
-        if self.assigned_only and not business.sandboxOf and not self.assigned_to(business):
-            return False
-        return not self.businesses or (business.sandboxOf or business.id) in self.businesses
-
-
-HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
-
-
-class TimeRange(BaseModel):
-    """Open from `open` to `close`, 24h; a close before the open runs past midnight."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    open: str = Field(pattern=HHMM)
-    close: str = Field(pattern=HHMM)
-
-    @model_validator(mode="after")
-    def _not_empty(self) -> "TimeRange":
-        if self.open == self.close:
-            raise ValueError("A range opens and closes at different times")
-        return self
-
-
-Day = list[TimeRange]
-DayField = Field(default_factory=list, max_length=2)
-
-
-class WeekHours(BaseModel):
-    """A branch's opening hours (`branches/{id}.hours`): per day up to two ranges; empty is closed."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    mon: Day = DayField
-    tue: Day = DayField
-    wed: Day = DayField
-    thu: Day = DayField
-    fri: Day = DayField
-    sat: Day = DayField
-    sun: Day = DayField
-
-
 class BusinessCreate(BaseModel):
     """Sign-up. `owner` creates the owner's account here; `ownerUid` names an existing one (the console's
-    Google sign-up), refused with 403 when it is a platform person (`users/{uid}` in `(default)`)."""
+    Google sign-up), refused with 403 when it is a platform person (`users/{uid}` in `(default)`). A sign-up
+    from a store names its `store` and gives an `owner` without a password; any other needs a password."""
 
     ownerUid: str | None = Field(default=None, min_length=1)
     ownerUsername: str | None = Field(default=None, pattern=USERNAME)
-    owner: OwnerAccount | None = None
+    owner: OwnerAccount | StoreOwner | None = None
+    store: StoreRef | None = None
     name: str = Field(min_length=1, max_length=120)
     type: str
     country: str = Field(min_length=2, max_length=2)
@@ -113,6 +51,9 @@ class BusinessCreate(BaseModel):
     def _one_owner(self) -> "BusinessCreate":
         if bool(self.ownerUid) == bool(self.owner):
             raise ValueError("Give exactly one of owner and ownerUid")
+        passwordless = self.owner is not None and not isinstance(self.owner, OwnerAccount)
+        if bool(self.store) != passwordless:
+            raise ValueError("A store's owner has no password, and every other owner needs one")
         return self
 
 
@@ -146,6 +87,13 @@ class PhoneNumber(BaseModel):
     at: str = ""
 
 
+class Uninstalled(BaseModel):
+    """Its store uninstalled the app: the status a reinstall gives back, and when (for the retention job)."""
+
+    status: BusinessStatus | None = Field(description="None: also deleted on the platform.")
+    at: datetime
+
+
 class Business(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -161,6 +109,7 @@ class Business(BaseModel):
     configured: bool = False
     provisioned: bool = False
     provisionError: str | None = Field(default=None, description="Why provisioning last failed; retry it.")
+    provisionStartedAt: datetime | None = Field(default=None, exclude=True)
     servicepersonUid: str | None = None
     numbers: list[PhoneNumber] = Field(default_factory=list)
     voiceUrl: str | None = None
@@ -177,6 +126,12 @@ class Business(BaseModel):
     createdAt: Any = None
     sandboxOf: str | None = Field(default=None, description="A sandbox twin: the live business it tests.")
     sandboxId: str | None = Field(default=None, description="This business's sandbox twin, once made.")
+    uninstalled: Uninstalled | None = Field(default=None, exclude=True)
+    reenabledAt: datetime | None = Field(default=None, exclude=True, description="The last reinstall.")
+    chargeFailedAt: datetime | None = Field(default=None, exclude=True, description="Store charges failing "
+                                            "since then: past `stores.chargeGraceSeconds`, service stops.")
+    storePlan: StorePlan | None = Field(default=None, exclude=True, description="Paid through Shopify: wins "
+                                        "over Stripe; the API shows it as `plan`.")
 
     @property
     def mode(self) -> Mode:

@@ -22,22 +22,6 @@ ID = r"[A-Za-z0-9_-]{1,128}"
 AUDIO_NAME = r"[a-z0-9][a-z0-9-]{0,39}"
 
 
-def user_avatar(uid: str) -> str:
-    return f"users/{uid}/avatar"
-
-
-def app_avatar(app_id: str) -> str:
-    return f"apps/{app_id}/avatar"
-
-
-def business_avatar(business_id: str) -> str:
-    return f"businesses/{business_id}/avatar"
-
-
-def branch_avatar(business_id: str, branch_id: str) -> str:
-    return f"businesses/{business_id}/branches/{branch_id}/avatar"
-
-
 def audio(business_id: str, name: str, version: int | None = None) -> str:
     """The active recording callers hear, or the earlier version `v{n}`."""
     return f"businesses/{business_id}/audios/{name}/" + (f"v{version}" if version else "active")
@@ -46,16 +30,6 @@ def audio(business_id: str, name: str, version: int | None = None) -> str:
 def advertisement_image(ad_id: str, kind: str) -> str:
     """An advertisement's `icon` or `background` image."""
     return f"advertisements/{ad_id}/{kind}"
-
-
-def greeting_cache(business_id: str, lang: str, mode: str, digest: str, ext: str) -> str:
-    """soneeva-voice's prepared greeting (`ext` ulaw or txt)."""
-    return f"businesses/{business_id}/cache/greeting/{lang}/{mode}-{digest}.{ext}"
-
-
-def filler_cache(lang: str, digest: str) -> str:
-    """soneeva-voice's holding phrases, shared by every business."""
-    return f"cache/fillers/{lang}/{digest}.ulaw"
 
 
 USER_AVATAR = re.compile(rf"^users/({ID})/avatar$")

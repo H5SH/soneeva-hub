@@ -2,125 +2,17 @@
 
 karbon-hub is now a JSON API only. Nothing is live yet, so this is a first deploy, not a migration.
 
-## What breaks
+## Before the first deploy
 
-- `/admin` (pages, sign-in, cookies) is gone. Use karbon-admin, which calls `/v1/me` and `/v1/payment/*`.
-- `/billing/{appId}` (plan picker, `?token=`, `/return`, `/cancel`, `/portal`) is gone, with the
-  `payment-service-hosted` audience. The console uses `GET /v1/businesses/{id}/plans` and
-  `POST /v1/businesses/{id}/checkout` / `/portal`.
-- Apps vs internal tools: `karbon-admin` and `soneeva-voice` are tools (`tools/{id}`, never in
-  Stripe); `soneeva-console` is gone — the console signs as the app `soneeva` (`HUB_APP_ID=soneeva`,
-  staging `soneeva_staging`), which now holds the console's `hub.*` scopes. Re-run `seed:soneeva`: it
-  moves the old `apps/karbon-admin` and `apps/soneeva-voice` with their keys and deletes
-  `apps/soneeva-console`. Then `key:rotate soneeva` for the console (karbon-admin's key moves as is).
-- One people system: `/v1/payment/users`, `/v1/payment/roles`, `/v1/platform/roles`,
-  `/v1/platform/scopes`, `/v1/platform/tools` and the platform half of `/v1/accounts` are gone. Platform
-  people are `/v1/people` (role, `apps`, `businesses`, tokens, servicepersons on one record) and roles
-  `/v1/roles` (console ids and `payment.*` together; `payment.user.*` and `Tools.View` no longer exist,
-  `Users.*`/`Roles.*` guard both). `/v1/accounts` is only the console's business members and own
-  account. karbon-admin needs the new `hub.people.view|update` (drops `hub.account.*` except `recover`
-  and `hub.platform.update`): re-run `seed:soneeva`, which also deletes the stale `apps/karbon-hub`,
-  `apps/soneeva-console`, `apps/karbon-admin`, `apps/soneeva-voice` (tools keep their keys in `tools`).
-  CLI: `users`/`user:*` are now `people`/`person:*`.
-- Staging: `{appId}_staging` is every app in Stripe test mode (`STRIPE_TEST_SECRET_KEY`, add it to
-  the hub's env). A business signed up by a staging caller is `test: true` for good; a staging caller
-  gets 403 on any other business. Create its endpoint with `webhook:create soneeva_staging`.
-- An app with subscribers (live or test) is never deleted.
-- Sign-up (`POST /v1/businesses`): `hours` is a week, `{"mon": [{"open": "09:00", "close": "17:00"}], …,
-  "sun": []}` (empty is closed, at most two ranges a day, 24h `HH:MM`, open ≠ close; anything else is 422),
-  stored as is on `branches/main.hours`. Only the `owner` role (`name`, every scope) is seeded; manager and
-  staff are no longer made — businesses create their own roles in the console.
-- `GET /v1/businesses/{id}/plan` for each voice (scope `hub.plan.view`, re-run `seed:soneeva`).
-- `POST /v1/apps/{appId}/checkout/session` (generic billing API) now sends Stripe straight back to
-  `success_url`; the subscription is synced by the webhook, not on the way back.
-- `SESSION_SECRET` is no longer read. Password-reset emails
-  (`/v1/people/{uid}/password-reset` with `send`) go through Identity Toolkit with the runtime
-  service account's own token.
-- Recovery: `/recover`, a break-glass page to rotate a hand-rotated internal tool's key (karbon-admin)
-  when karbon-admin is down; it needs `Tools.Write` (superadmin's `*`). App keys rotate in karbon-admin.
-  Needs `AUTH_SECRET` (the same value as karbon-admin's) and `FIREBASE_API_KEY` (the web API key);
-  without them it says "not configured". Password only for now; 2FA comes later.
-  Someone signed in to karbon-admin is let in directly (and `/` shows them "Open key recovery"): the hub
-  reads karbon-admin's Auth.js session cookie with the shared `AUTH_SECRET`. For that cookie to reach the
-  hub, both must share the parent domain (`admin.soneeva.com`, `hub.soneeva.com`) with the same
-  `AUTH_SECRET`, and karbon-admin needs `AUTH_COOKIE_DOMAIN=.soneeva.com`. /recover's own sign-in stays
-  for when karbon-admin is down; its sign-out ends only that cookie.
-- `/docs` and `/openapi.json` exist only with `ENVIRONMENT=development`.
-- settings.json: `session.*` removed, `dashboard.*` renamed `customers.*`, `handoff.*` added.
-- There is no "first sign-in becomes superadmin" any more: make the first one with the CLI (below).
-- The console's app no longer holds `hub.account.update` or `hub.platform.*` (re-run `seed:soneeva`).
-  `/v1/scopes/{appId}` accepts `hub.business.view` instead.
-- `GET /v1/servicepersons` with a business sub returns only that business's serviceperson card.
-- Advertisements: `/v1/advertisements` with the new app scopes `hub.advertisement.view|update` (re-run
-  `seed:soneeva` so karbon-admin holds them) and the person scopes `Advertise.View|Write` (superadmin's `*`).
-- `seed:soneeva` now really deletes the moved/stale `apps` docs (karbon-admin, soneeva-voice, soneeva-console,
-  karbon-hub), also ones an earlier run only flagged `isDeleted`.
-- A serviceperson is a person whose role is `serviceperson` (`users/{uid}`, with `phone`): `/v1/servicepersons`
-  and assigning a business read people. `(default)/servicepersons` and `seed:servicepersons` are gone; delete
-  that collection, and give each serviceperson the role (`person:save <uid> --role serviceperson --phone …`).
-- Each new `b-{id}` gets the console's `calls.startedAt` indexes at sign-up.
-- Voice by hand: existing businesses get the new `deployment` checklist item with `business:provision <id>`
-  (adds missing items, keeps progress).
-- Data regions: sign-up picks where a business's data goes (`dataRegion`, `dataLocation`; `GET /v1/data-locations`
-  lists them). The default region (US) nests it in `(default)` under `businesses/{id}` (empty `dbId`); the EU
-  in `region-eu` (made in `eur3` on the first EU sign-up); a custom location gets its own `b-{id}` there.
-  Existing `b-{id}` businesses are unchanged. Deploy soneeva-voice and the console with this hub: both read
-  an empty `dbId` as nested in `(default)`. The first nested sign-up adds the composite
-  `calls (businessId, startedAt)` indexes to `(default)` (and to `region-eu`), which takes a few minutes.
-- Files: `/v1/media/{path}` serves avatars, app icons and logos from the private Firebase Storage
-  bucket; `POST /v1/accounts/password-reset-request` emails a reset link (always 202). Both need
-  the new app scopes from `seed:soneeva` (`hub.media.view|update`, `hub.account.recover`, and
-  `hub.account.update` again for self-service name and password). A business token can no longer
-  change another member's email or password.
-- Platform people are checked on console ids, not `hub.*` ids in their role: `/v1/businesses` needs
-  `Businesses.View` (or `.Access`/`.Assign`), PATCH `Businesses.Write` (status, configured) or
-  `Businesses.Assign` (servicepersonUid), voice and numbers `Businesses.Write`. Add `Businesses.Write`
-  to roles that change businesses (superadmin's `*` has it). `karbon-admin` gets the app scopes its
-  pages call (re-run `seed:soneeva`).
-- `servicepersons/{uid}.photoURL` is no longer read or returned (the picture is `users/{uid}/avatar`);
-  soneeva-voice keeps each business's greeting under `businesses/{id}/cache/greeting/…` and its
-  fillers under `cache/fillers/…` (older `greeting/…` and `businesses/{id}/greeting/…` objects can be
-  deleted; they are regenerated). `audio/…` is the browser demo's: leave it.
-- New scopes: console `profile.edit` (owner, manager, staff) and `business.edit` (owner), platform
-  `Profile.Write` (every platform role). Roles of businesses created before this keep their stored
-  scopes: add `profile.edit`/`business.edit` to them in the console's roles page (owner's `*` was
-  expanded at sign-up).
-- karbon-hub has no signing key: no `/.well-known/jwks.json`, no `karbon-hub-key` secret, no
-  `cli hub:key`. Handoffs are one-time codes (`?code=`) the console redeems at
-  `POST /v1/handoff/redeem`; the console's old `?token=` handoff and its `b-{id}/handoffs` store are gone.
-- `MCP_URL` and `WHATSAPP_FROM` are no longer hub env: each business has `mcpUrl` and `whatsappFrom`
-  (empty at sign-up), set in karbon-admin's "Agent connection" panel (`PATCH /v1/businesses/{id}`,
-  `Businesses.Write`), which redeploys only that business's voice. Remove both from the hub's env.
-  With no sender, the voice sends no WhatsApp confirmations.
-- Every checklist starts with `assigned`, `meeting`, `subscribed`, `mcp`. `hub.business.update` also admits
-  `Businesses.Access` people, for `POST /v1/businesses/{id}/checklist/meeting` only.
-
-- Call menus and recorded messages: `numbers/{e164}` and `audios/{name}` in each `b-{id}`, recordings
-  at `businesses/{id}/audios/{name}/active|v{n}`. New console scopes `ivr.view`, `ivr.edit`,
-  `audio.edit` (re-run `seed:soneeva`); owners of businesses created before this need them added in
-  the console's roles page. Buying a number now writes a default menu (straight to the agent, greeted
-  by `opening` when it exists) and always restarts that business's voice. Every voice deploy carries
-  `BUSINESS_TYPE` and `RESTART_AT` (a timestamp, so an otherwise unchanged env still makes a new
-  Cloud Run revision).
-
-- Structure clean-up (nothing live, so no data migration): every field karbon-hub and soneeva-voice
-  write is camelCase (`isDeleted`, `createdAt`, `appId`, `startedAt`, `lastCallAt`, …);
-  `applications` is now `apps`, the (default) `grants` (who looks after whom) is now `assignments`.
-  A `b-{id}` provisioned before this needs the `calls.startedAt` indexes: `business:provision <id>`
-  requests what src/db/indexes.py lists and waits for it, also for a provisioned business. The demo's `(default)/callers/…` stays snake_case: demo-owned.
-
-- Stripe is the single source of truth for payment data. Delete the Firestore `(default)`
-  collections `plans`, `coupons`, `customers`, `subscriptions`, `events` and `usage`, and the
-  `resources` doc; nothing reads them. Plans are Stripe products (metadata `app`, `code`, `status`,
-  `unit`, `contact`) with default prices, coupons are Stripe coupons + promotion codes (metadata
-  `app`), a tenant is the Stripe customer with metadata `{app, tenant}` (was `{app_id, store_hash}`).
-  Re-run `seed:soneeva` against the Stripe account to create the products; old prices without a
-  product's metadata are ignored (archive them in the dashboard). Re-create the webhook endpoint
-  (`webhook:create`): it now also takes `product.*` and `price.*` events.
-- `/v1/apps/{appId}/*` responses say `tenant` instead of `store_hash` and have no `limits`;
-  `/v1/payment/…/plans` has `icon` and no `version`/`newPrice` (a new amount is a new Stripe price);
-  `/v1/payment/businesses/{id}/usage` is `{days:[{day, seconds}]}` from Stripe meter summaries.
-  `roles:migrate` and `checklist:upgrade` are gone (nothing live to migrate).
+- `/recover` needs `AUTH_SECRET` (karbon-admin's value) and `FIREBASE_API_KEY`. For someone signed in to karbon-admin to
+  be let in directly, both must share the parent domain (`admin.soneeva.com`, `hub.soneeva.com`) and karbon-admin needs
+  `AUTH_COOKIE_DOMAIN=.soneeva.com`.
+- There is no "first sign-in becomes superadmin": make the first one with the CLI (below).
+- Deploy soneeva-voice and the console with this hub: both read an empty `dbId` as nested in `(default)`. The first
+  nested sign-up adds the composite `calls (businessId, startedAt)` indexes to `(default)` (and `region-eu`), which
+  takes a few minutes.
+- Old objects under `greeting/…` and `businesses/{id}/greeting/…` can be deleted, they are regenerated. `audio/…` is
+  the browser demo's: leave it.
 
 ## Hosting
 
@@ -131,6 +23,7 @@ karbon-hub is now a JSON API only. Nothing is live yet, so this is a first deplo
 - Domain: `hub.soneeva.com` mapped to the service. It is used only
   server to server (the console's and karbon-admin's Next servers, soneeva-voice) and by Stripe;
   no browser calls it except a person on `/recover`. Set it as `SERVICE_BASE_URL` here and `HUB_URL` in the clients.
+- Deploy with `--no-cpu-throttling`: provisioning runs after the sign-up answers, for up to 15 minutes.
 - Min instances 0 is fine; the replay guard and caches are per instance.
 
 ## Runtime service account
@@ -162,6 +55,7 @@ nothing now), the `karbon-hub-key` and `session-secret` secrets, and any broad r
 | `STRIPE_WEBHOOK_SECRET` | secret | optional fallback signing secret; per-app secrets (`webhook:create`) are preferred and the only thing that works once a second app exists |
 | `TWILIO_ACCOUNT_SID` | env | master account (non-trial) |
 | `TWILIO_AUTH_TOKEN` | secret | master account token |
+| `CONNECTIONS_KEY` | secret | required in production: the console's value (32 bytes, base64), reads store tokens to charge Shopify usage |
 | `ENVIRONMENT` | env | `production` |
 | `SERVICE_BASE_URL` | env | `https://hub.soneeva.com` |
 | `LOG_LEVEL` | env | `INFO` |
@@ -276,3 +170,22 @@ Where the keys go (each printed once):
   blocks a new number, `GET …/callers?blocked=true` lists them (single-field index, nothing to create).
   Each block and unblock writes `caller.block` / `caller.unblock` to the business's `audit/`.
   soneeva-voice must be redeployed: it rejects blocked numbers (`<Reject reason="busy"/>`) before anything else.
+
+- Shopify and BigCommerce stores: new collection `(default)/stores/{platform}:{storeId}`, new app scopes
+  `hub.store.signin` and `hub.store.update` (re-run `seed:soneeva`), new business type `shop`. New console scopes
+  `connections.view` and `connections.edit` for the console's page; the hub itself only lets a business's owner connect
+  or disconnect a store, so existing owners need nothing. `POST /v1/businesses` takes `store` with an `owner` without a
+  password. An uninstall sets status `deleted` and `uninstalled`; a reinstall gives the status back, and a business
+  deleted on the platform stays deleted. A business paying through Shopify holds `storePlan`, which wins over Stripe
+  everywhere its plan is read; the voice env is written when it goes active. Its calls are charged to Shopify on
+  `POST /v1/usage`, so the hub needs the console's `CONNECTIONS_KEY`. An uninstall also ends a Shopify plan and answers
+  `active: false` on `GET /v1/businesses/{id}/plan`, so the voice stops serving; re-deploy the voice to rely on it.
+  The row's `uninstalled.at` is the uninstall date (a reinstall clears it): the retention job, which lives outside this
+  repo, counts its 30 days from it, which meets Shopify's `shop/redact`, and must also delete the business's `stores`
+  rows, or a reinstall finds it. `cli store:release` frees a store stuck on a business deleted on the platform.
+  Voices must not report a call more than 24 hours late: Shopify forgets the charge's key then and charges again.
+- Rotating an app or tool key now stops the old keys after `keys.retiringSeconds` (an hour), or at once with `--revoke`
+  or the box on `/recover`: redeploy within that. A deleted business, and one whose store charges have failed for
+  `stores.chargeGraceSeconds`, answers `active: false` on `GET /v1/businesses/{id}/plan`. A business token can no longer
+  change `status` except pending to running.
+  No new index.

@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     stripe_test_secret_key: str = Field(default="", description="Test mode for `{appId}_staging`; empty: off")
     stripe_test_webhook_secret: str = Field(default="", description="Test mode's fallback signing secret")
 
+    connections_key: str = Field(default="", description="The console's: reads store tokens.")
+
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
 

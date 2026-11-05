@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from src.models.admin import Scope
-from src.services.voice import from_dotenv
+from src.services.voice import from_dotenv, to_dotenv
 from tests.setup.platform import business, checkout_event, subscribe
 
 FIXTURE = json.loads((Path(__file__).parent / "contract" / "hub.json").read_text())
@@ -109,8 +109,15 @@ def test_a_sandbox_twin_is_its_own_unlisted_test_business_with_a_rotating_key(cl
     assert client.post(f"/v1/businesses/{biz}/sandbox", headers=dev()).json()["id"] == twin
     again = client.post(f"/v1/businesses/{biz}/sandbox/key", headers=dev()).json()
     assert again["businessId"] == twin and again["env"] != first["env"]
-    tool = services.db.rows[("tools", "soneeva-voice")]["keys"]
-    assert len([k for k in tool if k.get("subject") == twin]) == 1  # the previous key is gone
+    key = services.db.rows[("businesses", twin)]["voiceKey"]
+    assert key["subject"] == twin and from_dotenv(again["env"])["HUB_KEY_ID"] == key["kid"]
     voice = bearer("soneeva-voice", [Scope.HUB_PLAN_VIEW], sub=twin)
     plan = client.get(f"/v1/businesses/{twin}/plan", headers=voice)
     assert plan.json()["active"] is True and plan.json()["status"] == "sandbox"
+
+
+def test_a_business_name_is_never_read_as_an_env_variable(monkeypatch):
+    """Or a business called `${STRIPE_SECRET_KEY}` gets the hub's key copied into its voice secret."""
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_live_REAL")
+    name = "${STRIPE_SECRET_KEY}"
+    assert from_dotenv(to_dotenv({"BUSINESS_NAME": name})) == {"BUSINESS_NAME": name}

@@ -4,8 +4,9 @@ from collections.abc import Awaitable, Callable, Sequence
 from datetime import datetime
 from typing import Any
 
-from src.db.base import DELETE, ID, Database, Doc, Increment, Query, Transaction, Write
+from src.db.base import Database, Transaction
 from src.db.indexes import DbIndex
+from src.db.query import DELETE, ID, Doc, Increment, Query, Write
 
 MISSING: Any = object()
 #: Firestore orders values by type first; a range filter matches only values of its own type.
@@ -95,12 +96,6 @@ class FakeDatabase(Database):
 
     async def database_exists(self, name: str) -> bool:
         return name in self.databases
-
-    async def collections(self) -> list[str]:
-        return sorted({path.split("/")[0] for path, _ in self.rows})
-
-    async def drop_collection(self, name: str) -> None:
-        self.rows = {k: v for k, v in self.rows.items() if k[0].split("/")[0] != name}
 
     async def create_database(self, name: str, location: str | None = None) -> None:
         if name not in self.databases:

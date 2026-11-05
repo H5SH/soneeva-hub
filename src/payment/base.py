@@ -113,6 +113,10 @@ class PaymentGateway(ABC):
         """Returns (endpoint id, signing secret), the secret only now."""
 
     @abstractmethod
+    async def delete_webhook_endpoint(self, endpoint_id: str) -> None:
+        """Gone, or already gone."""
+
+    @abstractmethod
     def parse_webhook(self, payload: bytes, signature: str | None, secret: str | None = None) -> WebhookEvent:
         """Verify the signature (the app's own `secret`, else the default) and normalise.
         Raises SignatureError on a bad signature."""

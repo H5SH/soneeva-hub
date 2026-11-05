@@ -126,3 +126,16 @@ def test_password_reset_sends_or_links(platform, client, bearer):
     assert client.post(url, json={"send": True}, headers=as_(bearer, "sp")).json() == {"sent": True}
     assert client.post(url, json={}, headers=as_(bearer, "admin")).json()["link"].startswith("https://")
     assert client.post(url, json={"send": True}, headers=as_(bearer, "u2")).status_code == 403
+
+
+def test_a_person_cant_take_over_someone_with_a_role_they_couldnt_give(platform, client, bearer):
+    platform.db.rows[("roles", "support")] = {"scopes": ["Users.View", "Users.Write", "Users.Disable",
+                                                         "Users.Delete", "Users.ResetPassword"]}
+    platform.db.rows[("users", "helper")] = {"role": "support"}
+    platform.accounts.add("helper", email="helper@example.com")
+    who = lambda: as_(bearer, "helper")  # noqa: E731
+    for fields in ({"password": "secret2"}, {"email": "evil@example.com"}, {"disabled": True}):
+        assert client.patch(f"{URL}/admin", json=fields, headers=who()).status_code == 403, fields
+    assert client.delete(f"{URL}/admin", headers=who()).status_code == 403
+    assert client.post(f"{URL}/admin/password-reset", json={"send": False}, headers=who()).status_code == 403
+    assert client.patch(f"{URL}/admin", json={"displayName": "Boss"}, headers=who()).status_code == 200

@@ -1,38 +1,19 @@
 """The one database contract. A path names a collection, slash-joined: `callers`, `callers/{phone}/calls`.
 
-Raw documents (get, set, query, …) are plain dicts as stored. Rows (get_row, set_row, …) add the
+Raw documents (get, set, query, …) are plain dicts as stored. Rows (get_row, upsert_live, …) add the
 soft delete and timestamps; a document without the flag (the console writes some directly) is live.
 """
 
 import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from time import monotonic
 from typing import Any
 
 from src.db.indexes import DbIndex
+from src.db.query import Doc, Query, Write
 from src.models.db import CREATED_AT, DELETED_AT, DELETED_FLAG, UPDATED_AT
-
-#: Order by (or filter on) the document id; Firestore's own name for it.
-ID = "__name__"
-
-
-def path(*parts: str) -> str:
-    return "/".join(parts)
-
-
-class Delete:
-    """In a merged `set`: remove this field."""
-
-
-DELETE = Delete()
-
-
-@dataclass(frozen=True)
-class Increment:
-    amount: int
 
 
 class DatabaseError(Exception):
@@ -41,49 +22,6 @@ class DatabaseError(Exception):
 
 class IndexesBuilding(DatabaseError):
     """The indexes were requested but are not all ready yet; waiting again resumes."""
-
-
-@dataclass(frozen=True)
-class Query:
-    """`where` ops: == < <= > >= in array_contains. `after` is a document id in `path`.
-    `group`: every collection named `path`, at any depth."""
-
-    path: str
-    filters: tuple[tuple[str, str, Any], ...] = ()
-    order: tuple[tuple[str, bool], ...] = ()
-    limit: int | None = None
-    after: str | None = None
-    group: bool = False
-
-    def where(self, field: str, op: str, value: Any) -> "Query":
-        return replace(self, filters=(*self.filters, (field, op, value)))
-
-    def order_by(self, field: str, descending: bool = False) -> "Query":
-        return replace(self, order=(*self.order, (field, descending)))
-
-    def take(self, limit: int) -> "Query":
-        return replace(self, limit=limit)
-
-    def start_after(self, doc_id: str) -> "Query":
-        return replace(self, after=doc_id)
-
-
-@dataclass
-class Doc:
-    id: str
-    data: dict[str, Any]
-    #: The id of the document whose subcollection holds this one.
-    parent: str | None = None
-
-
-@dataclass(frozen=True)
-class Write:
-    """`data` None deletes the document."""
-
-    path: str
-    doc_id: str
-    data: dict[str, Any] | None = None
-    merge: bool = False
 
 
 class Transaction(ABC):
@@ -134,14 +72,6 @@ class Database(ABC):
             if monotonic() >= deadline:
                 raise IndexesBuilding("indexes still building")
             await asyncio.sleep(max(0.0, min(interval, deadline - monotonic())))
-
-    @abstractmethod
-    async def collections(self) -> list[str]:
-        """Top-level collection names."""
-
-    @abstractmethod
-    async def drop_collection(self, name: str) -> None:
-        """Deletes a top-level collection and everything under it, for good."""
 
     # ── documents ────────────────────────────────────────────────────────────
     @abstractmethod
@@ -195,8 +125,8 @@ class Database(ABC):
         stamps = {DELETED_FLAG: False, DELETED_AT: None, CREATED_AT: now, UPDATED_AT: now}
         return await self.create(collection, row_id, data | stamps)
 
-    async def set_row(self, collection: str, row_id: str, data: dict[str, Any]) -> dict[str, Any]:
-        """Upsert, merging into any existing row. Returns the written payload."""
+    async def upsert_live(self, collection: str, row_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Upsert, merging into any existing row, and undeleting it. Returns the written payload."""
         now = datetime.now(UTC)
         payload = data | {DELETED_FLAG: False, DELETED_AT: None, UPDATED_AT: now}
         if await self.get(collection, row_id) is None:

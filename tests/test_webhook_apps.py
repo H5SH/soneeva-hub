@@ -1,8 +1,16 @@
 """Per-app webhooks: provisioning, the write-only secret, and events that name another app."""
 
 import asyncio
+import hashlib
+import hmac
 import json
+import time
 
+import pytest
+
+from src.payment import SignatureError
+from src.payment.stripe.gateway import StripeGateway
+from src.services.ttl import MISSING
 from src.services.webhook import WEBHOOK_EVENTS
 from tests.setup.platform import business
 from tests.setup.staff import staff
@@ -63,7 +71,7 @@ def test_the_secret_is_write_only_and_a_blank_keeps_it(client, bearer, services)
     assert saved.json()["hasWebhookSecret"] is True and "whsec_abc" not in saved.text
     client.patch(f"{APPS}/soneeva", json={"webhookSecret": "", "name": "S"}, headers=headers())
     assert services.db.rows[("apps", "soneeva")]["stripeWebhookSecret"] == "whsec_abc"
-    assert services.keys._cache.get("soneeva") is None  # the verifier re-reads it at once
+    assert services.keys._cache.get("soneeva") is MISSING  # the verifier re-reads it at once
 
 
 def test_the_staging_secret_is_its_own_write_only_field(client, bearer, services):
@@ -91,3 +99,11 @@ def test_a_tenant_is_read_once_until_its_subscription_event_arrives(client, serv
     assert client.post("/webhooks/stripe/soneeva", content=json.dumps(event)).json()["result"] == "processed"
     assert record().status == "active" and record().plan_code == "per-minute"
     assert client.post("/webhooks/stripe/soneeva", content=json.dumps(event)).json()["result"] == "duplicate"
+
+
+def test_no_signing_secret_refuses_every_webhook_instead_of_trusting_an_empty_one():
+    """An HMAC with an empty key is one anybody can make."""
+    payload, now = b'{"id": "evt_1", "object": "event"}', int(time.time())
+    forged = hmac.new(b"", f"{now}.".encode() + payload, hashlib.sha256).hexdigest()
+    with pytest.raises(SignatureError):
+        StripeGateway("sk_test_x", "").parse_webhook(payload, f"t={now},v1={forged}")

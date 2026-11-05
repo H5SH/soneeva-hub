@@ -15,6 +15,8 @@ from joserfc import jwe
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
 
+from src.services.state import services_of
+
 #: karbon-admin's own name (admin auth.ts): `__Secure-` in production, bare locally over http.
 NAMES = ("__Secure-soneeva-admin", "soneeva-admin")
 ALGORITHMS = ["dir", "A256CBC-HS512"]
@@ -49,8 +51,7 @@ def _uid(value: str, secret: str, salt: str) -> str | None:
 
 def admin_session(request: Request) -> str | None:
     """The signed-in person's uid (the admin's `uid` claim), or None when absent, forged or expired."""
-    settings = request.app.state.settings
-    secret = settings.auth_secret if settings else ""
+    secret = services_of(request).settings.auth_secret
     for name in NAMES:
         value = _cookie(request.cookies, name)
         if secret and value and (uid := _uid(value, secret, name)):

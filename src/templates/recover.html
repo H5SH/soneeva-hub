@@ -77,7 +77,7 @@
     {% if not configured %}
       <p>Not configured. Set <code>FIREBASE_API_KEY</code> and <code>AUTH_SECRET</code> in the hub's env.</p>
     {% elif rotated %}
-      <p>A new key for <strong>{{ rotated.tool }}</strong>. The old keys are retired.</p>
+      <p>A new key for <strong>{{ rotated.tool }}</strong>. {% if rotated.revoked %}The old keys have stopped working.{% else %}The old keys stop working within the hour.{% endif %}</p>
       <div class="note warn">Shown once. Copy it into the tool's env now; it is not stored anywhere.</div>
       <dl>
         <dt>Tool id</dt><dd>{{ rotated.tool }}</dd>
@@ -96,6 +96,7 @@
         <select id="tool" name="tool" required>
           {% for tool in tools %}<option value="{{ tool.id }}">{{ tool.name }} ({{ tool.id }})</option>{% endfor %}
         </select>
+        <label><input type="checkbox" name="revoke"> Stop the old keys now (the key leaked)</label>
         <button class="wide" {% if not tools %}disabled{% endif %}>Rotate key</button>
       </form>
       <p class="note">soneeva-voice is not listed: its keys are per business and rotate when the voice is redeployed.</p>

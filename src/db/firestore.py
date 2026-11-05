@@ -16,8 +16,9 @@ from google.cloud.firestore_admin_v1.types import Database as AdminDatabase
 from google.cloud.firestore_admin_v1.types import Field, Index, UpdateFieldRequest
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from src.db.base import DELETE, Database, DatabaseError, Doc, Increment, Query, Transaction, Write
+from src.db.base import Database, DatabaseError, Transaction
 from src.db.indexes import CompositeIndex, DbIndex, FieldIndex
+from src.db.query import DELETE, Doc, Increment, Query, Write
 
 #: An index requested again while it builds is left alone; one that needs repair is requested again.
 LIVE_STATES = {Index.State.READY, Index.State.CREATING}
@@ -94,12 +95,6 @@ class FirestoreDatabase(Database):
         except NotFound:
             return False
         return True
-
-    async def collections(self) -> list[str]:
-        return sorted([c.id async for c in self._client.collections()])
-
-    async def drop_collection(self, name: str) -> None:
-        await self._client.recursive_delete(self._client.collection(name))
 
     async def create_database(self, name: str, location: str | None = None) -> None:
         location = location or self._location

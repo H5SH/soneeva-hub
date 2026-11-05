@@ -4,14 +4,14 @@ import pytest
 
 from src.models.admin import ROLE_SCOPES, SUPERADMIN, Scope
 from src.models.db import Default
-from src.models.people import Actor
+from src.models.identity import Identity
 from src.services.people.roles import RoleService
 from src.services.people.store import People
 from src.services.roles import RoleStore
 from tests.conftest import FakeDatabase
 
 ROLE = "auditor"
-BOSS = Actor(app_id="karbon-admin", sub="-", uid="boss", platform=True, role="boss",
+BOSS = Identity(app_id="karbon-admin", sub="-", uid="boss", platform=True, role="boss",
              scopes=["*", *[str(s) for s in ROLE_SCOPES]])
 
 

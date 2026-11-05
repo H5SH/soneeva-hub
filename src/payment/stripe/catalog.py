@@ -36,8 +36,11 @@ def meter_event(plan: Plan) -> str:
 
 
 class StripeCatalog:
-    _api: Any
-    _meter_events: dict[str, str]
+    """Plans, meters, coupons and webhook endpoints: the half of StripeGateway that isn't about customers."""
+
+    def __init__(self, api: stripe.V1Services) -> None:
+        self._api = api
+        self._meter_events: dict[str, str] = {}
 
     async def list_plans(self) -> list[Plan]:
         page = await self._api.products.list_async(
@@ -181,6 +184,13 @@ class StripeCatalog:
         """Promotion codes cannot be deleted, only deactivated; the coupon goes with it."""
         await self._api.promotion_codes.update_async(coupon.promotion_code_id, {"active": False})
         await self._api.coupons.delete_async(coupon.coupon_id)
+
+    async def delete_webhook_endpoint(self, endpoint_id: str) -> None:
+        try:
+            await self._api.webhook_endpoints.delete_async(endpoint_id)
+        except stripe.InvalidRequestError as error:
+            if error.http_status != 404:
+                raise
 
     async def create_webhook_endpoint(self, url: str, events: list[str]) -> tuple[str, str]:
         created = await self._api.webhook_endpoints.create_async({"url": url, "enabled_events": events})

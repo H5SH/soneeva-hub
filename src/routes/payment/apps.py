@@ -1,9 +1,13 @@
 from fastapi import APIRouter
 
-from src.dependencies import AdminDep, AppRefDep, SettingsDep
-from src.models.admin import Principal, Scope
+from src.config import Settings
+from src.dependencies import AdminDep, AppRef, AppRefDep, SettingsDep
+from src.models.admin import Scope
+from src.models.app import AppConfig
+from src.models.identity import Identity
 from src.models.mode import Mode
-from src.models.staff import AppCreate, AppPatch, app_view
+from src.models.staff import AppCreate, AppPatch
+from src.models.views import app_view
 from src.services.admin import AdminService
 from src.services.errors import PlatformError
 from src.services.tokens.staff import need, requires_staff
@@ -22,9 +26,34 @@ async def shown(admin: AdminService, app_id: str, mode: Mode = Mode.LIVE) -> dic
     return view | {"subscribers": await admin.subscribers(app_id)}
 
 
+async def create(admin: AdminService, body: AppCreate) -> AppConfig:
+    hosts = [h.strip() for h in body.allowedReturnHosts if h.strip()]
+    return await admin.create_app(body.id, body.name.strip(), body.returnUrl.strip(), hosts, body.tags)
+
+
+async def update(admin: AdminService, app_id: str, body: AppPatch) -> dict:
+    await shown(admin, app_id)
+    if body.fields():
+        await admin.update_app(app_id, **body.fields())
+    return await shown(admin, app_id)
+
+
+async def provision(admin: AdminService, settings: Settings, ref: AppRef) -> dict:
+    """Creates the app's Stripe endpoint and stores its signing secret, which is never returned."""
+    await shown(admin, ref.id)
+    endpoint_id, url = await admin.provision_webhook(ref.id, settings.service_base_url, ref.mode)
+    return {"endpointId": endpoint_id, "url": url, "hasWebhookSecret": True}
+
+
+async def new_key(admin: AdminService, app_id: str) -> tuple[str, str]:
+    """(kid, private PEM): a new key, the others retire. Returned once and never stored."""
+    await shown(admin, app_id)
+    return await admin.rotate_key(app_id)
+
+
 @router.get("")
 async def list_apps(
-    admin: AdminDep, q: str = "", person: Principal = requires_staff(VIEW, Scope.APP_VIEW)
+    admin: AdminDep, q: str = "", person: Identity = requires_staff(VIEW, Scope.APP_VIEW)
 ) -> dict:
     """`q` matches the id, the name or any tag."""
     return {"apps": [app_view(config, creds) for config, creds in await admin.list_apps(person, q)]}
@@ -32,15 +61,13 @@ async def list_apps(
 
 @router.post("", status_code=201)
 async def create_app(
-    body: AppCreate, admin: AdminDep, person: Principal = requires_staff(UPDATE, Scope.APP_CREATE)
+    body: AppCreate, admin: AdminDep, person: Identity = requires_staff(UPDATE, Scope.APP_CREATE)
 ) -> dict:
-    hosts = [h.strip() for h in body.allowedReturnHosts if h.strip()]
-    config = await admin.create_app(body.id, body.name.strip(), body.returnUrl.strip(), hosts, body.tags)
-    return await shown(admin, config.id)
+    return await shown(admin, (await create(admin, body)).id)
 
 
 @router.get("/{app_id}")
-async def get_app(ref: AppRefDep, admin: AdminDep, person: Principal = requires_staff(VIEW)) -> dict:
+async def get_app(ref: AppRefDep, admin: AdminDep, person: Identity = requires_staff(VIEW)) -> dict:
     """`{appId}_staging`: the same app with its Stripe test plans."""
     need(person, Scope.APP_VIEW, ref.id)
     return await shown(admin, ref.id, ref.mode)
@@ -48,30 +75,24 @@ async def get_app(ref: AppRefDep, admin: AdminDep, person: Principal = requires_
 
 @router.patch("/{app_id}")
 async def update_app(
-    app_id: str, body: AppPatch, admin: AdminDep, person: Principal = requires_staff(UPDATE)
+    app_id: str, body: AppPatch, admin: AdminDep, person: Identity = requires_staff(UPDATE)
 ) -> dict:
     need(person, Scope.APP_UPDATE, app_id)
-    await shown(admin, app_id)
-    if body.fields():
-        await admin.update_app(app_id, **body.fields())
-    return await shown(admin, app_id)
+    return await update(admin, app_id, body)
 
 
 @router.post("/{app_id}/webhook", status_code=201)
 async def provision_webhook(
-    ref: AppRefDep, admin: AdminDep, settings: SettingsDep, person: Principal = requires_staff(UPDATE)
+    ref: AppRefDep, admin: AdminDep, settings: SettingsDep, person: Identity = requires_staff(UPDATE)
 ) -> dict:
     """Creates the app's Stripe endpoint (`_staging`: in the test account) and stores its signing
     secret, which is never returned."""
     need(person, Scope.APP_UPDATE, ref.id)
-    await shown(admin, ref.id)
-    base_url = settings.service_base_url if settings else ""
-    endpoint_id, url = await admin.provision_webhook(ref.id, base_url, ref.mode)
-    return {"endpointId": endpoint_id, "url": url, "hasWebhookSecret": True}
+    return await provision(admin, settings, ref)
 
 
 @router.delete("/{app_id}")
-async def delete_app(app_id: str, admin: AdminDep, person: Principal = requires_staff(UPDATE)) -> dict:
+async def delete_app(app_id: str, admin: AdminDep, person: Identity = requires_staff(UPDATE)) -> dict:
     """Refused (400) while the app has subscribers, live or test."""
     need(person, Scope.APP_DELETE, app_id)
     await shown(admin, app_id)
@@ -80,9 +101,8 @@ async def delete_app(app_id: str, admin: AdminDep, person: Principal = requires_
 
 
 @router.post("/{app_id}/keys", status_code=201)
-async def rotate_key(app_id: str, admin: AdminDep, person: Principal = requires_staff(UPDATE)) -> dict:
+async def rotate_key(app_id: str, admin: AdminDep, person: Identity = requires_staff(UPDATE)) -> dict:
     """A new key; the others retire. The private key is returned once and never stored."""
     need(person, Scope.KEY_ROTATE, app_id)
-    await shown(admin, app_id)
-    kid, private_pem = await admin.rotate_key(app_id)
+    kid, private_pem = await new_key(admin, app_id)
     return {"appId": app_id, "kid": kid, "privateKey": private_pem}

@@ -1,6 +1,9 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
-from src.models.auth import Audience
+from src.models.auth import Audience, KeyStatus, PublicKey
+from src.services.tokens.generate import rotate
 from src.services.tokens.verify import AuthError
 from tests.conftest import keypair
 
@@ -100,17 +103,31 @@ async def test_a_hub_token_cannot_call_the_payment_api(verifier, sign):
 
 @pytest.mark.asyncio
 async def test_rotated_key_still_verifies_while_retiring(application, sign, keys):
-    """Rotation must not invalidate tokens already in flight."""
+    """Rotation must not invalidate tokens already in flight, but a retired key doesn't last."""
     from src.services.tokens.keys import KeyStore
     from src.services.tokens.replay import ReplayGuard
     from src.services.tokens.verify import TokenVerifier
     from tests.conftest import APP_ID, FakeDatabase
 
     _, new_public = keypair()
-    application["keys"][0]["status"] = "retiring"
+    application["keys"][0] |= {"status": "retiring", "retiring_until": datetime.now(UTC) + timedelta(hours=1)}
     application["keys"].append(
         {"kid": "new-key", "alg": "EdDSA", "public_key": new_public, "status": "active"}
     )
     verifier = TokenVerifier(KeyStore(FakeDatabase({("apps", APP_ID): application})), ReplayGuard())
     claims = await verifier.verify(sign(), Audience.API)
     assert claims.tenant == "store-123"
+    application["keys"][0]["retiring_until"] = datetime.now(UTC) - timedelta(seconds=1)
+    verifier = TokenVerifier(KeyStore(FakeDatabase({("apps", APP_ID): application})), ReplayGuard())
+    with pytest.raises(AuthError):
+        await verifier.verify(sign(), Audience.API)
+
+
+def test_rotation_retires_for_a_while_and_revoking_stops_at_once():
+    old = PublicKey(kid="old", public_key="pem")
+    (retired, new), _, _ = rotate([old])
+    assert retired.live and retired.status is KeyStatus.RETIRING and new.status is KeyStatus.ACTIVE
+    revoked, kid, _ = rotate([old], revoke=True)
+    assert [k.kid for k in revoked] == [kid]
+    gone = retired.model_copy(update={"retiring_until": datetime.now(UTC) - timedelta(seconds=1)})
+    assert not gone.live and len(rotate([gone])[0]) == 1  # an expired key is dropped, never extended

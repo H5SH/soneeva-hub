@@ -34,6 +34,9 @@ per-machine values live in `.env` (see `.env.example`); contracts are constants 
 | `advertisements.maxBusinesses` | Most businesses one `POST /v1/advertisements/{id}/publish` names. |
 | `accounts.resetLimit`, `accounts.resetWindowSeconds` | Reset emails `POST /v1/accounts/password-reset-request` sends per address per window (per instance); more are dropped silently. |
 | `voice.language`, `voice.voice`, `voice.engine` | Defaults written to `settings/agent` at sign-up; `engine` is `spark` (Gemini Live, speech-to-speech) or `smart` (speech-to-text, LLM, text-to-speech), switched in the console. |
+| `stores.shopifyApiVersion` | Shopify Admin API version for usage charges; keep it the console's. |
+| `stores.chargeGraceSeconds` | How long a business's store charges may keep failing before `GET /v1/businesses/{id}/plan` says inactive and the voice stops. |
+| `keys.retiringSeconds` | How long an app or tool's old keys keep verifying after a rotation, to redeploy with the new one. |
 | `numbers.type` | Twilio number kind searched: `Local`, `Mobile` or `TollFree`. |
 | `numbers.searchLimit` | Most numbers a search returns. |
 | `agent.minMinutes`, `agent.maxMinutes`, `agent.defaultMinutes` | Lifetime bounds of an operator token for `/v1/agent` (`POST /v1/agent-tokens`). |

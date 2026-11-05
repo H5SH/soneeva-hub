@@ -9,11 +9,11 @@ from fastapi import APIRouter, Request
 from src.dependencies import ReaderDep
 from src.models.admin import Scope
 from src.models.demo import SECTION_SCOPES
-from src.models.people import Actor
-from src.routes.platform.media import read_file
+from src.models.identity import Identity
 from src.services.errors import PlatformError
 from src.services.people.access import requires_actor
 from src.services.people.rules import holds
+from src.services.uploads import read_file
 
 router = APIRouter(prefix="/v1/knowledge", tags=["knowledge"])
 #: Who may: in a business, whoever edits its menu; on the platform, whoever edits a demo line.
@@ -24,7 +24,7 @@ PLATFORM = (SECTION_SCOPES["soneevaNumber"], SECTION_SCOPES["demoNumber"])
 @router.post("/read")
 async def read(
     request: Request, reader: ReaderDep, form: Literal["text", "menu"] = "text",
-    actor: Actor = requires_actor(Scope.HUB_KNOWLEDGE_READ),
+    actor: Identity = requires_actor(Scope.HUB_KNOWLEDGE_READ),
 ) -> dict:
     """The raw file as the body (its Content-Type one of `knowledge.types`): `{text}` or `{items}`."""
     needed = BUSINESS if actor.business_id else PLATFORM if actor.platform else ()

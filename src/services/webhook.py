@@ -36,7 +36,7 @@ WEBHOOK_EVENTS = SUBSCRIPTION_EVENTS + INVOICE_EVENTS + CHECKOUT_EVENTS + PLAN_E
 class WebhookService:
     def __init__(
         self, payment: PaymentGateway, billing: BillingService, plans: PlanService, keys: KeyStore,
-        mode: Mode = Mode.LIVE, on_subscription: Callable[[str, bool], Awaitable[None]] | None = None,
+        mode: Mode, on_subscription: Callable[[str, bool], Awaitable[None]],
     ) -> None:
         """One per mode. `on_subscription(tenant, active)` runs after each subscription event (checklist)."""
         self._payment = payment
@@ -57,12 +57,17 @@ class WebhookService:
         except SignatureError as error:
             raise ValueError(str(error)) from error
 
-    async def handle(self, app: AppConfig, event: WebhookEvent) -> str:
-        """Once per event id (a failed one is retried by Stripe and runs again)."""
-        if self._seen.get(event.id) is not MISSING:
+    async def handle(self, app: AppConfig, event: WebhookEvent, after: Callable[[], Awaitable[None]]) -> str:
+        """Once per app and event id: every endpoint gets every app's events, and one naming another app
+        isn't this one's to remember. `after` runs when it applied; if it or `_apply` fails, Stripe's retry
+        runs it all again."""
+        seen = (app.id, event.id)
+        if self._seen.get(seen) is not MISSING:
             return "duplicate"
         result = await self._apply(app, event)
-        self._seen.put(event.id, True)
+        if result != "unmapped":
+            await after()
+            self._seen.put(seen, True)
         return result
 
     async def _apply(self, app: AppConfig, event: WebhookEvent) -> str:
@@ -80,8 +85,7 @@ class WebhookService:
             logger.warning(f"Event {event.id} carries metadata {gateway.metadata}, expected app {app.id}")
             return "unmapped"
         record = await self._billing.sync(app.id, tenant)
-        if self._on_subscription:
-            await self._on_subscription(tenant, record.is_active)
+        await self._on_subscription(tenant, record.is_active)
         return "processed"
 
     async def _subscription(self, event: WebhookEvent) -> GatewaySubscription | None:

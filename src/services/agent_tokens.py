@@ -11,8 +11,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from src.db import Database
-from src.models.admin import Principal
 from src.models.db import Default
+from src.models.identity import Identity
 from src.services.errors import PlatformError
 from src.services.people.rules import holds
 from src.services.roles import RoleStore
@@ -40,10 +40,10 @@ class AgentTokenService:
         self._db = db
         self._roles = roles
 
-    async def may_use(self, person: Principal) -> bool:
+    async def may_use(self, person: Identity) -> bool:
         return holds(await self._roles.raw(person.role), AGENT_USE)
 
-    async def mint(self, person: Principal, minutes: int | None = None) -> dict[str, str]:
+    async def mint(self, person: Identity, minutes: int | None = None) -> dict[str, str]:
         """Returns {token, expiresAt}; the token is never stored or shown again."""
         low, high = tunable("agent.minMinutes"), tunable("agent.maxMinutes")
         minutes = minutes or tunable("agent.defaultMinutes")

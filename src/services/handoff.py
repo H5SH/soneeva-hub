@@ -10,20 +10,17 @@ from typing import Any
 from src.auth import AccountProvider
 from src.db import Database
 from src.models.db import BusinessDb, Default
-from src.models.people import Actor
-from src.models.platform import Caller
-from src.services.businesses import BusinessService, audit
+from src.models.identity import Identity
+from src.models.mode import SONEEVA
+from src.services.audit import audit
+from src.services.businesses import BusinessService
 from src.services.errors import PlatformError
 from src.services.people.access import grant_ended
 from src.services.people.rules import holds
+from src.utils import iso
 
-CONSOLE_APP = "soneeva"
 ACCESS_SCOPE = "Businesses.Access"
 CODE_SECONDS = 60
-
-
-def _iso(value: Any) -> str | None:
-    return value.isoformat() if isinstance(value, datetime) else value or None
 
 
 class HandoffService:
@@ -43,7 +40,7 @@ class HandoffService:
             raise PlatformError("No running grant for this business", 403)
         return grant
 
-    async def create(self, actor: Actor, business_id: str) -> dict[str, str]:
+    async def create(self, actor: Identity, business_id: str) -> dict[str, str]:
         if actor.business_id:
             raise PlatformError("Handoff is called with sub '-'", 403)
         if not actor.platform or not holds(actor.scopes, ACCESS_SCOPE):
@@ -58,9 +55,9 @@ class HandoffService:
         await audit(self._db, "handoff.create", business_id, actor.uid, {})
         return {"url": f"{self._console_url}/handoff?code={code}"}
 
-    async def redeem(self, caller: Caller, code: str) -> dict[str, Any]:
+    async def redeem(self, caller: Identity, code: str) -> dict[str, Any]:
         """Once only (410 after), before `expireAt` (410), for the console, with the grant re-read."""
-        if caller.app_id != CONSOLE_APP:
+        if caller.app_id != SONEEVA:
             raise PlatformError("Only the console redeems a handoff", 403)
         row = await self._db.get_row(Default.HANDOFFS, code)
         if not row:
@@ -80,6 +77,6 @@ class HandoffService:
             "uid": uid, "businessId": business_id,
             "displayName": account.displayName if account else "", "email": account.email if account else "",
             "grant": {"scopes": [s for s in grant.get("scopes") or [] if isinstance(s, str)],
-                      "roleId": grant.get("roleId") or None, "until": _iso(grant.get("until")),
+                      "roleId": grant.get("roleId") or None, "until": iso(grant.get("until")) or None,
                       "blocked": bool(grant.get("blocked"))},
         }

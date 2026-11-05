@@ -5,7 +5,9 @@ are /v1/people (PeopleService)."""
 import logging
 
 from src.auth import AccountError, AccountProvider
-from src.models.people import Account, AccountCreate, AccountPatch, Actor
+from src.models.identity import Identity
+from src.models.people import Account, AccountCreate, AccountPatch
+from src.services.businesses import BusinessService
 from src.services.people.rules import PROFILE_EDIT, Refused
 from src.services.rate_limit import RateLimit
 from src.tunables import tunable
@@ -16,17 +18,18 @@ logger = logging.getLogger(__name__)
 
 
 class MemberService:
-    def __init__(self, accounts: AccountProvider) -> None:
+    def __init__(self, accounts: AccountProvider, businesses: BusinessService) -> None:
         self._accounts = accounts
+        self._businesses = businesses
         self._recoveries = RateLimit(tunable("accounts.resetLimit"), tunable("accounts.resetWindowSeconds"))
 
     @staticmethod
-    def _business(actor: Actor) -> str:
+    def _business(actor: Identity) -> str:
         if not actor.business_id:
             raise Refused("Call as a business; platform people are /v1/people")
         return actor.business_id
 
-    async def _member(self, actor: Actor, uid: str, *scopes: str) -> Account:
+    async def _member(self, actor: Identity, uid: str, *scopes: str) -> Account:
         """The account, in the actor's business, when the actor holds one of `scopes` there."""
         business = self._business(actor)
         account = await self._accounts.get(uid)
@@ -36,7 +39,12 @@ class MemberService:
             raise Refused(f"Requires {scopes[-1]} in this business")
         return account
 
-    async def get(self, actor: Actor, uid: str) -> Account:
+    async def _not_owner(self, actor: Identity, uid: str) -> None:
+        business = await self._businesses.get(self._business(actor))
+        if business and business.ownerUid == uid:
+            raise Refused("A business's owner can't be disabled or removed")
+
+    async def get(self, actor: Identity, uid: str) -> Account:
         if uid == actor.uid:
             self._business(actor)
             account = await self._accounts.get(uid)
@@ -45,7 +53,7 @@ class MemberService:
             return account
         return await self._member(actor, uid, TEAM_VIEW, TEAM_EDIT)
 
-    async def create(self, actor: Actor, body: AccountCreate) -> Account:
+    async def create(self, actor: Identity, body: AccountCreate) -> Account:
         business = self._business(actor)
         if TEAM_EDIT not in actor.scopes:
             raise Refused(f"Requires {TEAM_EDIT} in this business")
@@ -57,7 +65,7 @@ class MemberService:
         except AccountError as error:
             raise Refused(str(error), error.status) from error
 
-    async def update(self, actor: Actor, uid: str, patch: AccountPatch) -> Account:
+    async def update(self, actor: Identity, uid: str, patch: AccountPatch) -> Account:
         fields = patch.model_dump(exclude_unset=True)
         own = uid == actor.uid and fields and set(fields) <= SELF_FIELDS
         if own and PROFILE_EDIT in actor.scopes:
@@ -66,6 +74,8 @@ class MemberService:
             await self._member(actor, uid, TEAM_EDIT)
             if {"email", "password"} & set(fields):
                 raise Refused("Only the person changes their own email and password")
+            if "disabled" in fields:
+                await self._not_owner(actor, uid)
         try:
             if "username" in fields:
                 await self._accounts.set_claims(uid, {"username": fields.pop("username")})
@@ -75,8 +85,9 @@ class MemberService:
             raise Refused(str(error), error.status) from error
         return await self.get(actor, uid) if uid == actor.uid else await self._member(actor, uid)
 
-    async def delete(self, actor: Actor, uid: str) -> None:
+    async def delete(self, actor: Identity, uid: str) -> None:
         await self._member(actor, uid, TEAM_EDIT)
+        await self._not_owner(actor, uid)
         await self._accounts.delete(uid)
 
     async def recover(self, email: str) -> None:

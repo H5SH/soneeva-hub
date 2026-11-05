@@ -12,7 +12,8 @@ NEW = {"email": "new@example.com", "password": "secret1", "displayName": "New", 
 @pytest.fixture
 def platform(services):
     people(services)
-    services.db.rows[(Default.BUSINESSES.value, "biz1")] = {"name": "B", "dbId": "b-biz1"}
+    services.db.rows[(Default.BUSINESSES.value, "biz1")] = {"name": "B", "dbId": "b-biz1", "type": "shop",
+                                                          "appId": "soneeva", "ownerUid": "boss"}
     services.business_dbs.setdefault("b-biz1", type(services.db)())
     return services
 
@@ -32,7 +33,8 @@ def test_members_read_themselves_not_other_businesses(platform, client, bearer):
 
 
 def test_a_business_token_manages_its_own_members_with_team_edit(platform, client, bearer, services):
-    services.db.rows[(Default.BUSINESSES.value, "biz1")] = {"name": "B", "dbId": "b-biz1"}
+    services.db.rows[(Default.BUSINESSES.value, "biz1")] = {"name": "B", "dbId": "b-biz1", "type": "shop",
+                                                          "appId": "soneeva", "ownerUid": "boss"}
     bdb = services.business_dbs.setdefault("b-biz1", type(services.db)())
     bdb.rows[("roles", "owner")] = {"scopes": ["team.view", "team.edit"]}
     bdb.rows[("roles", "staff")] = {"scopes": ["team.view"]}
@@ -68,7 +70,8 @@ def test_a_reset_request_is_always_accepted_and_limited_per_email(platform, clie
 
 
 def test_members_change_their_own_name_and_password_with_profile_edit(platform, client, bearer, services):
-    services.db.rows[(Default.BUSINESSES.value, "biz1")] = {"name": "B", "dbId": "b-biz1"}
+    services.db.rows[(Default.BUSINESSES.value, "biz1")] = {"name": "B", "dbId": "b-biz1", "type": "shop",
+                                                          "appId": "soneeva", "ownerUid": "boss"}
     bdb = services.business_dbs.setdefault("b-biz1", type(services.db)())
     bdb.rows[("roles", "staff")] = {"scopes": ["profile.edit"]}
     bdb.rows[("users", "member")] = {"role": "staff"}
@@ -81,3 +84,14 @@ def test_members_change_their_own_name_and_password_with_profile_edit(platform, 
     bdb.rows[("users", "boss")] = {"role": "staff"}
     boss = as_(bearer, "boss", sub="biz1")
     assert client.patch(url, json={"password": "taken123"}, headers=boss).status_code == 403
+
+
+def test_nobody_removes_or_disables_a_business_owner(platform, client, bearer, services):
+    bdb = services.business_dbs["b-biz1"]
+    bdb.rows[("roles", "manager")] = {"scopes": ["team.view", "team.edit"]}
+    bdb.rows[("users", "manager")] = {"role": "manager"}
+    services.accounts.add("boss", businessId="biz1")
+    who = lambda: as_(bearer, "manager", sub="biz1")  # noqa: E731
+    assert client.delete("/v1/accounts/boss", headers=who()).status_code == 403
+    assert client.patch("/v1/accounts/boss", json={"disabled": True}, headers=who()).status_code == 403
+    assert "boss" in services.accounts.accounts

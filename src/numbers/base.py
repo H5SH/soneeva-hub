@@ -34,5 +34,9 @@ class NumberProvider(ABC):
         """Sends a bought number's calls and status callbacks to these URLs."""
 
     @abstractmethod
+    async def owned(self, account_sid: str, phone: str) -> str | None:
+        """The number's sid when the subaccount already has it."""
+
+    @abstractmethod
     async def buy(self, account_sid: str, phone: str, voice_url: str, status_url: str) -> str:
         """Purchase onto the subaccount with its voice webhook set. Returns the number's sid."""

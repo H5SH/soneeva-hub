@@ -12,12 +12,13 @@ from src.routes.platform.media import router as media_router
 from src.routes.platform.people import router as people_router
 from src.routes.platform.public import router as public_router
 from src.routes.platform.roles import router as roles_router
+from src.routes.platform.stores import router as stores_router
 from src.routes.platform.usage import router as usage_router
 
 PLATFORM_ROUTERS = [
     public_router, businesses_router, billing_router, usage_router, accounts_router, people_router,
     roles_router, data_router, handoff_router, media_router, ivr_router, callers_router,
-    advertisements_router, demo_router, knowledge_router,
+    advertisements_router, demo_router, knowledge_router, stores_router,
 ]
 
 __all__ = ["PLATFORM_ROUTERS"]

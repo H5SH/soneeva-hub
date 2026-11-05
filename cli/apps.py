@@ -7,7 +7,7 @@ from pathlib import Path
 from cli.context import OPERATOR, Context
 from cli.output import Printer
 from src.models.mode import staged
-from src.models.staff import app_view, plan_view
+from src.models.views import app_view, plan_view
 from src.services.errors import AdminError
 from src.services.tokens.generate import env_block
 
@@ -91,7 +91,7 @@ async def delete_app(ctx: Context, out: Printer, args) -> None:
 
 async def rotate_key(ctx: Context, out: Printer, args) -> None:
     """Shown once and never stored, exactly as POST /v1/payment/apps/{id}/keys does it."""
-    kid, private_pem = await ctx.admin.rotate_key(args.app_id)
+    kid, private_pem = await ctx.admin.rotate_key(args.app_id, bool(args.revoke))
     payload = {"appId": args.app_id, "kid": kid, "privateKey": private_pem}
     out.emit(payload, lambda: out.block(env_block(args.app_id, kid, private_pem)))
 
@@ -99,7 +99,7 @@ async def rotate_key(ctx: Context, out: Printer, args) -> None:
 async def provision_webhook(ctx: Context, out: Printer, args) -> None:
     """POST /v1/payment/apps/{id}/webhook: the endpoint is created, its secret stored and never shown.
     `{appId}_staging`: the staging endpoint, in the Stripe test account."""
-    base_url = ctx.settings.service_base_url if ctx.settings else ""
+    base_url = ctx.settings.service_base_url
     app_id, mode = staged(args.app_id)
     endpoint_id, url = await ctx.admin.provision_webhook(app_id, base_url, mode)
     payload = {"endpointId": endpoint_id, "url": url, "hasWebhookSecret": True}
@@ -117,19 +117,16 @@ async def list_plans(ctx: Context, out: Printer, args) -> None:
 
 async def save_plan(ctx: Context, out: Printer, args) -> None:
     """The code is derived from --name when omitted. --amount is minor units per --unit
-    (`--unit minute --amount 10` is $0.10 a minute); unset keeps the saved amount, a different one makes
-    a new Stripe price. --status active|soon|hidden; unset keeps it."""
+    (`--unit minute --amount 10` is $0.10 a minute); a different one makes a new Stripe price. Whatever is
+    unset keeps what is saved."""
     if not (args.code or args.name):
         raise SystemExit("Give the plan a code or a --name.")
     app_id, mode = staged(args.app_id)
     plans = ctx.plans[mode]
-    saved = await plans.get(app_id, args.code) if args.code else None
-    features = [f.strip() for f in (args.features or "").split("|") if f.strip()]
+    features = [f.strip() for f in args.features.split("|") if f.strip()] if args.features else None
     plan = await plans.define(
-        app_id, args.code or "", args.name or "", args.amount, args.currency, args.interval,
-        args.trial, features or (saved.features if saved else []),
-        unit=args.unit or (saved.unit if saved else "month"),
-        status=args.status or (saved.status if saved else "active"), contact=args.contact,
+        app_id, args.code or "", args.name or "", args.amount, args.currency, args.interval, args.trial,
+        features, unit=args.unit, status=args.status, contact=args.contact or None,
     )
     priced = f"price={plan.price_id}" if plan.price_id else "no price"
     out.emit(plan_view(plan), lambda: out.done(f"Plan '{plan.code}' saved ({plan.product_id}, {priced})."))

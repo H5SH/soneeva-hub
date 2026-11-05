@@ -10,10 +10,12 @@ from typing import Any
 
 from src.db import Database, business_db
 from src.models.db import BusinessDb, Default
-from src.models.platform import Business, Caller
+from src.models.identity import Identity
+from src.models.platform import Business
 from src.services.errors import PlatformError
 from src.services.people.rules import holds
 from src.tunables import tunable
+from src.utils import iso
 
 #: `by` on items the hub changes itself.
 HUB_ACTOR = "karbon-hub"
@@ -52,21 +54,21 @@ class ChecklistService:
         state = "done" if done else "open"
         if not bdb or not row or row.get("state") == state:
             return False
-        await bdb.set_row(BusinessDb.CHECKLIST, item, {"state": state, "by": by, "at": datetime.now(UTC)})
+        await bdb.upsert_live(BusinessDb.CHECKLIST, item, {"state": state, "by": by, "at": datetime.now(UTC)})
         return True
 
     async def on_subscription(self, business_id: str, active: bool) -> None:
         """Called for every saved subscription; a store that is no business is skipped."""
         await self.set_state(business_id, "subscribed", active)
 
-    async def tick_staff_item(self, caller: Caller, business: Business, item: str,
+    async def tick_staff_item(self, caller: Identity, business: Business, item: str,
                               done: bool) -> dict[str, Any]:
         """One of `businesses.staffItems`, by the assigned serviceperson or a platform person holding
         Businesses.Write."""
         if item not in tunable("businesses.staffItems"):
             raise PlatformError(f"'{item}' is not ticked by staff", 404)
         assigned = caller.assigned_to(business)
-        write = caller.person_scopes is not None and holds(caller.person_scopes, "Businesses.Write")
+        write = caller.role_scopes is not None and holds(caller.role_scopes, "Businesses.Write")
         if caller.business_id or not (assigned or write):
             raise PlatformError("Only the assigned serviceperson or Businesses.Write", 403)
         bdb = business_db(self._db, business.id, business.dbId)
@@ -79,6 +81,5 @@ class ChecklistService:
         """In order, as `{id, label, state, by, at}` (`at` ISO or null)."""
         rows = await business_db(self._db, business.id, business.dbId).get_rows(BusinessDb.CHECKLIST)
         rows.sort(key=lambda r: (r.get("order", float("inf")), r["id"]))
-        at = lambda v: v.isoformat() if isinstance(v, datetime) else v  # noqa: E731
         return [{"id": r["id"], "label": r.get("label", r["id"]), "state": r.get("state", "open"),
-                 "by": r.get("by"), "at": at(r.get("at"))} for r in rows]
+                 "by": r.get("by"), "at": iso(r.get("at"))} for r in rows]

@@ -23,6 +23,7 @@ class FakePayment(PaymentGateway):
         self.coupon_products: dict[str, list[str]] = {}
         self.usage: dict[str, tuple[str, str, int]] = {}
         self.endpoints: list[tuple[str, list[str]]] = []
+        self.deleted_endpoints: list[str] = []
         self.checkouts: list[dict[str, Any]] = []
         self.webhook_secrets: list[str | None] = []
         self.calls = 0
@@ -159,6 +160,9 @@ class FakePayment(PaymentGateway):
     async def create_webhook_endpoint(self, url: str, events: list[str]) -> tuple[str, str]:
         self.endpoints.append((url, list(events)))
         return f"we_{len(self.endpoints)}", f"whsec_{len(self.endpoints)}"
+
+    async def delete_webhook_endpoint(self, endpoint_id: str) -> None:
+        self.deleted_endpoints.append(endpoint_id)
 
     def parse_webhook(self, payload: bytes, signature: str | None, secret: str | None = None) -> WebhookEvent:
         self.webhook_secrets.append(secret)

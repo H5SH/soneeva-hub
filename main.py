@@ -7,9 +7,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from src.config import get_settings
+from src.payment import ProviderError, refusal
 from src.routes import ROUTERS
 from src.services.catalogue import seed_hub
 from src.services.errors import AdminError, PlatformError
+from src.stores.seal import check_key
 from src.wiring import Services, build
 
 DESCRIPTION = "karbon-hub: auth, scopes, plans, payments, businesses and numbers for Soneeva and its apps."
@@ -25,6 +27,8 @@ def attach(app: FastAPI, services: Services) -> None:
 async def lifespan(app: FastAPI):
     settings = get_settings()
     logging.basicConfig(level=settings.log_level)
+    if settings.environment == "production":
+        check_key(settings.connections_key)
     services = build(settings)
     attach(app, services)
     await seed_hub(services.db)
@@ -50,9 +54,15 @@ def create_app() -> FastAPI:
     async def _admin_error(_: Request, error: AdminError) -> JSONResponse:
         return JSONResponse({"detail": str(error)}, status_code=400)
 
+    @app.exception_handler(ProviderError)
+    async def _provider_error(_: Request, error: ProviderError) -> JSONResponse:
+        status, message = refusal(error)
+        return JSONResponse({"detail": message}, status_code=status)
+
     @app.exception_handler(PlatformError)
     async def _platform_error(_: Request, error: PlatformError) -> JSONResponse:
-        return JSONResponse({"detail": str(error)}, status_code=error.status)
+        body = {"detail": str(error)} | ({"code": error.code} if error.code else {})
+        return JSONResponse(body, status_code=error.status)
 
     return app
 

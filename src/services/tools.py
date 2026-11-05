@@ -5,7 +5,7 @@ from typing import Any
 
 from src.db import Database
 from src.models.auth import Audience, PublicKey, Tool
-from src.models.db import Default, to_doc
+from src.models.db import VOICE_KEY, Default, to_doc
 from src.models.mode import STAGING
 from src.services.errors import AdminError, PlatformError
 from src.services.tokens.generate import rotate, subject_key
@@ -60,27 +60,30 @@ class ToolService:
         await self._db.delete_row(Default.TOOLS, tool_id)
         self._keys.forget(tool_id)
 
-    async def rotate_key(self, tool_id: str) -> tuple[str, str]:
+    async def rotate_key(self, tool_id: str, revoke: bool = False) -> tuple[str, str]:
         """Returns (kid, private PEM), shown once. A tool with keys per business rotates by redeploying."""
         tool = await self.require(tool_id)
         if tool.subject_keys:
             raise AdminError(f"'{tool_id}' has a key per business; redeploying rotates it.")
-        keys, kid, private_pem = rotate(tool.keys)
+        keys, kid, private_pem = rotate(tool.keys, revoke)
         await self._save_keys(tool_id, keys)
         return kid, private_pem
 
     async def issue_subject_key(self, tool_id: str, subject: str) -> tuple[str, str]:
-        """A key that only signs for `subject` (one business's voice), replacing its previous one."""
+        """A key that only signs for `subject` (one business's voice), replacing its previous one. Kept on
+        the business's row in `(default)`: only the public half, and only the hub reads it."""
         tool = await self.get(tool_id)
         if not tool or not tool.subject_keys:
             raise AdminError(f"No tool '{tool_id}' with keys per business. Run seed:soneeva first.")
-        keys, kid, private_pem = subject_key(tool.keys, subject)
-        await self._save_keys(tool_id, keys)
-        return kid, private_pem
+        key, private_pem = subject_key(subject)
+        stored = {VOICE_KEY: to_doc(key.model_dump(mode="json"))}
+        await self._db.upsert_live(Default.BUSINESSES, subject, stored)
+        self._keys.forget_subject(subject)
+        return key.kid, private_pem
 
     async def _save_keys(self, tool_id: str, keys: list[PublicKey]) -> None:
         await self._save(tool_id, {"keys": [k.model_dump(mode="json") for k in keys]})
 
     async def _save(self, tool_id: str, fields: dict[str, Any]) -> None:
-        await self._db.set_row(Default.TOOLS, tool_id, to_doc(fields))
+        await self._db.upsert_live(Default.TOOLS, tool_id, to_doc(fields))
         self._keys.forget(tool_id)

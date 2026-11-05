@@ -24,7 +24,7 @@ COMMANDS = [
     ("app:update", "Change an app's fields (--webhook-secret is write-only)", apps.update_app, ["app_id"],
      ["name", "return-url", "hosts", "free-plan", "scopes", "tags", "webhook-secret"]),
     ("app:delete", "Delete an app (never while it has subscribers)", apps.delete_app, ["app_id"], []),
-    ("key:rotate", "Issue a key and print the env block", apps.rotate_key, ["app_id"], []),
+    ("key:rotate", "Issue a key and print the env block", apps.rotate_key, ["app_id"], ["revoke"]),
     ("webhook:create", "Create this app's Stripe endpoint and store its secret ({app}_staging: test)",
      apps.provision_webhook, ["app_id"], []),
     ("tools", "List internal tools", tools.list_tools, [], []),
@@ -32,7 +32,8 @@ COMMANDS = [
     ("tool:create", "Create an internal tool", tools.create_tool, ["tool_id"], ["name", "scopes"]),
     ("tool:update", "Change a tool's name or hub scopes", tools.update_tool, ["tool_id"], ["name", "scopes"]),
     ("tool:delete", "Delete an internal tool", tools.delete_tool, ["tool_id"], []),
-    ("tool:key:rotate", "Issue a tool key and print the HUB_* env block", tools.rotate_key, ["tool_id"], []),
+    ("tool:key:rotate", "Issue a tool key and print the HUB_* env block", tools.rotate_key, ["tool_id"],
+     ["revoke"]),
     ("plans", "List an app's plans", apps.list_plans, ["app_id"], []),
     ("plan:save", "Create or update a plan (code derived from --name when omitted)", apps.save_plan,
      ["app_id", "code?"],
@@ -52,6 +53,8 @@ COMMANDS = [
     ("customer:show", "One business's subscription and plan", coupons.show_customer, ["business_id"], []),
     ("customer:invoices", "A business's Stripe invoices", coupons.list_invoices, ["business_id"], []),
     ("customer:usage", "A business's metered seconds per day", coupons.show_usage, ["business_id"], []),
+    ("store:release", "Free a store stuck on a dead business (--test: staging's)",
+     platform.release_store, ["store_platform", "store_id"], ["test"]),
     ("people", "List platform people", people.list_people, [], []),
     ("person:create", "Create a person, print a password-set link", people.create_person,
      ["email"], ["name", "role", "apps", "businesses", "phone"]),
@@ -65,8 +68,6 @@ COMMANDS = [
     ("role:delete", "Remove a role nobody holds", people.delete_role, ["role"], []),
     ("scopes", "List the scopes a role can hold", people.list_scopes, [], []),
     ("seed:soneeva", "Register soneeva, its tools, scopes and plans", platform.seed_soneeva, [], []),
-    ("db:prune", "List (and with --apply delete) unused top-level collections", platform.prune_db,
-     [], ["apply"]),
     ("scopes:sync", "Write scopes/{app} from a console scopes.json", platform.sync_scopes,
      ["app_id", "path"], []),
     ("businesses", "List businesses", platform.list_businesses, [], []),
@@ -78,8 +79,8 @@ COMMANDS = [
 
 # Options that are not plain strings.
 TYPED = {"amount": int, "trial": int, "max": int, "months": int, "percent": float}
-FLAGS = {"disabled", "contact", "apply"}
-DEFAULTS = {"currency": "usd", "interval": "month", "trial": 0, "max": 0, "months": 0, "percent": 100.0,
+FLAGS = {"disabled", "contact", "revoke", "test"}
+DEFAULTS = {"max": 0, "months": 0, "percent": 100.0,
             "duration": "forever"}
 REQUIRED = {("role:save", "scopes")}
 

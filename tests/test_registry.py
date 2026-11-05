@@ -10,7 +10,7 @@ from src.models.db import camel, to_doc
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = {ROOT / "src/models/db.py", ROOT / "src/models/paths.py"}
 #: Calls that take a collection or document name first.
-NAMED = {"collection", "document", "collection_group", "get_rows", "get_row", "create_row", "set_row",
+NAMED = {"collection", "document", "collection_group", "get_rows", "get_row", "create_row", "upsert_live",
          "delete_row", "claim", "path"}
 BUCKET = re.compile(r"^(users|apps|businesses|cache|audio|advertisements)/")
 
@@ -58,15 +58,8 @@ def test_the_guard_catches_what_it_should():
 
 
 def test_paths_and_their_patterns_agree():
-    assert paths.USER_AVATAR.match(paths.user_avatar("u1"))
-    assert paths.APP_AVATAR.match(paths.app_avatar("soneeva"))
-    assert paths.BUSINESS_AVATAR.match(paths.business_avatar("b1"))
-    assert paths.BRANCH_AVATAR.match(paths.branch_avatar("b1", "main"))
     assert paths.AUDIO.match(paths.audio("b1", "opening"))
     assert paths.AUDIO.match(paths.audio("b1", "opening", 2))
-    greeting = paths.greeting_cache("b1", "nl", "order", "ab12", "ulaw")
-    assert greeting == "businesses/b1/cache/greeting/nl/order-ab12.ulaw"
-    assert paths.filler_cache("nl", "ab12") == "cache/fillers/nl/ab12.ulaw"
     assert paths.AD_IMAGE.match(paths.advertisement_image("ad1", "icon"))
     assert paths.AD_IMAGE.match(paths.advertisement_image("ad1", "background"))
 

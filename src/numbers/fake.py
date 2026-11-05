@@ -20,6 +20,10 @@ class FakeNumbers(NumberProvider):
     async def point(self, account_sid: str, number_sid: str, voice_url: str, status_url: str) -> None:
         self.pointed[number_sid] = voice_url
 
+    async def owned(self, account_sid: str, phone: str) -> str | None:
+        found = [i + 1 for i, b in enumerate(self.bought) if b[:2] == (account_sid, phone)]
+        return f"PN{found[0]:032d}" if found else None
+
     async def buy(self, account_sid: str, phone: str, voice_url: str, status_url: str) -> str:
         self.bought.append((account_sid, phone, voice_url))
         return f"PN{len(self.bought):032d}"

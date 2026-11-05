@@ -113,12 +113,3 @@ def test_person_save_gives_an_existing_account_its_first_record(ctx, capsys):
     assert ctx.db.rows[(Default.USERS.value, "boss")]["role"] == SUPERADMIN
     with pytest.raises(AdminError, match="No such person"):
         invoke(ctx, capsys, "person:save", "ghost", "--role", SUPERADMIN)
-
-
-def test_db_prune_lists_then_deletes_only_unused_collections(ctx, capsys):
-    ctx.db.rows[("resources", "roles")] = {"superadmin": ["*"]}
-    ctx.db.rows[(Default.ROLES.value, "sales")] = {"scopes": []}
-    assert "resources" in invoke(ctx, capsys, "db:prune")
-    assert ("resources", "roles") in ctx.db.rows
-    invoke(ctx, capsys, "db:prune", "--apply")
-    assert ("resources", "roles") not in ctx.db.rows and (Default.ROLES.value, "sales") in ctx.db.rows

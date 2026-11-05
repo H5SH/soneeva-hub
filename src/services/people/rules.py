@@ -8,7 +8,8 @@ from collections.abc import Iterable
 from typing import Literal
 
 from src.models.admin import ROLE_SCOPES, Scope
-from src.models.platform import Business, Caller
+from src.models.identity import Identity
+from src.models.platform import Business
 from src.services.errors import PlatformError
 from src.tunables import tunable
 
@@ -24,7 +25,7 @@ def holds(scopes: Iterable[str], scope: str) -> bool:
     return scope in scopes or ("*" in scopes and scope not in HUB)
 
 
-def reach(scopes: Iterable[str], scope: str) -> Reach:
+def scope_reach(scopes: Iterable[str], scope: str) -> Reach:
     scopes = list(scopes)
     if holds(scopes, scope):
         return "all"
@@ -42,10 +43,10 @@ def business_reach(scopes: Iterable[str]) -> Reach:
 CANNOT_READ = "Requires Businesses.View, or Businesses.Access on a business assigned to you"
 
 
-def reads_business(caller: Caller, business: Business) -> bool:
+def reads_business(caller: Identity, business: Business) -> bool:
     """A business's details (branches, checklist, callers, call menus): Businesses.View for every
     business, Businesses.Access for those assigned to the person. Not a person: checked elsewhere."""
-    role = caller.person_scopes
+    role = caller.role_scopes
     if role is None:
         return True
     assigned = caller.assigned_to(business) and holds(role, "Businesses.Access")
@@ -86,11 +87,6 @@ def is_serviceperson_role(scopes: list[str]) -> bool:
     return "*" in scopes or any(s.startswith(ASSIGNED) for s in scopes)
 
 
-def held(tokens: int | None) -> int:
-    """What a user holds that came out of someone's balance. Overspent is nothing."""
-    return max(0, tokens or 0)
-
-
 class Refused(PlatformError):
     """A rule said no; the message goes back to the caller (403 unless said otherwise)."""
 
@@ -98,21 +94,3 @@ class Refused(PlatformError):
         super().__init__(message, status)
 
 
-def plan_tokens(scope_reach: Reach, self_target: bool, nxt: int | None):
-    """The transfer plan for a token change, run inside the transaction (People.transfer)."""
-
-    def plan(current: int | None, balance: int | None) -> int:
-        if nxt == current or scope_reach == "all":
-            return 0
-        if self_target:
-            raise Refused("You can't change your own tokens")
-        if balance is None:
-            return 0
-        if nxt is None:
-            raise Refused("Only someone with no limit can give no limit")
-        cost = nxt - held(current)
-        if cost > held(balance):
-            raise Refused(f"You have {held(balance)} tokens left to give", 409)
-        return -cost
-
-    return plan

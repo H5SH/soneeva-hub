@@ -49,7 +49,9 @@ is [tests/contract/hub.json](tests/contract/hub.json).
 | Caller names, tags and blocks | `GET /v1/businesses/{id}/callers?q=&tag=&blocked=&limit=&before=`, `PATCH …/callers/{e164}` (`name`, `tags`, `blocked`, `blockedReason`), `POST …/callers` (block a number that never called) (store: [src/services/callers.py](src/services/callers.py)) | karbon-admin (the console writes `b-{id}` directly) |
 | Call menus and recorded messages | `GET /v1/businesses/{id}/ivr/numbers`, `PUT …/ivr/numbers/{e164}`, `GET`/`PUT`/`DELETE …/audios/{name}`, `DELETE …/audios/{name}/versions/{n}` | console (karbon-admin reads) |
 | Media | `GET`/`PUT`/`DELETE /v1/media/{path}` | console, karbon-admin |
-| Usage and plan status | `POST /v1/usage`, `GET /v1/businesses/{id}/plan` (`{active, status, plan, periodEnd, test}`; the voice re-checks on its own timer, the hub never calls a voice) | soneeva-voice |
+| Reading a menu from a file | `POST /v1/knowledge/read?form=menu` (Gemini, `knowledge.*` in settings; the runtime account needs `roles/aiplatform.user`) | console |
+| Usage and plan status | `POST /v1/usage` (to Stripe, or Shopify for a business paying through it), `GET /v1/businesses/{id}/plan` (`{active, status, plan, periodEnd, test}`; the voice re-checks on its own timer, the hub never calls a voice) | soneeva-voice |
+| Stores | `POST /v1/stores/sign-in`, `PUT`/`DELETE /v1/stores/{platform}/{storeId}`, `POST /v1/businesses/{id}/disable`, `/enable`, `PUT /v1/businesses/{id}/plan` (store: [src/services/stores.py](src/services/stores.py)) | console, `hub.store.signin`, `hub.store.update`; connecting takes the business's owner |
 | Payment admin | `/v1/payment/apps…`, `/v1/payment/businesses…` | karbon-admin, `payment.*` |
 | Operator tokens | `POST`/`DELETE /v1/agent-tokens` (`{minutes}` 15–120 → `{token, expiresAt}` once) | karbon-admin, the person's role holds `Agent.Use` |
 | Agent API | `/v1/agent/whoami`, `/v1/agent/apps…` (create, update, plans, webhook, keys `?format=env`, coupons, `tenants/{tenant}`); schema at `/v1/agent/openapi.json` (public) | an operator's agent, `Authorization: Bearer kat_…` |
@@ -88,7 +90,7 @@ their write scopes.
 back to `running`/`pending` to resume) needs `Businesses.Write`, `deleted` (and restoring from it)
 needs `Businesses.Delete` (superadmin via `*`) and is audited as `business.delete`; a business's own
 token never sets or leaves `deleted`. `GET /v1/businesses` hides `deleted` unless `?status=deleted`,
-and the home page leaves them out (payment customers still list them while billed). Nothing else changes: the database, voice and numbers stay.
+and the home page leaves them out (payment customers still list them while billed). The database, voice and numbers stay, but `GET /v1/businesses/{id}/plan` answers `active: false`, so the voice stops serving.
 
 An app's `hub.*` scopes live on `apps/{id}.scopes`, a tool's on `tools/{id}.scopes`
 (`cli app:update --scopes`, `tool:update --scopes`; `seed:soneeva` sets them for Soneeva). Internal tools are managed only
@@ -97,12 +99,11 @@ by the CLI (`tool:*`) and `/recover`; there is no HTTP API for them.
 **People.** One record per platform person, `users/{uid}`: `role`, `apps` (payment apps they act
 on), `businesses` (empty = every business), `tokens`, `disabled`, plus who looks after them
 (`assignments`). One role (`roles/{id}`) holds any mix of console ids (`Users.View`, `*` = every one)
-and `payment.*`/`platform.*` scopes; never `hub.*` (an old `hub.*` id on a stored role is ignored and
-drops off on the next save). `GET /v1/roles` returns the catalogue a role picks from. Nobody gives a
+and `payment.*`/`platform.*` scopes; never `hub.*`. `GET /v1/roles` returns the catalogue a role picks from. Nobody gives a
 role, scope or app they don't hold, changes their own role, apps, businesses or disabled flag, or
 deletes a role someone holds (409). Nothing here deploys soneeva-voice: `checkout.session.completed`
 for `soneeva` writes that business's voice env to Secret Manager as `voice-{businessId}` (its own
-`soneeva-voice` key, named on `businesses/{id}.voiceKeyId`; only the public half stays here), and its
+`soneeva-voice` key; only the public half stays here, on `businesses/{id}.voiceKey`, which only the hub reads), and its
 first number adds the Twilio subaccount ([src/services/voice.py](src/services/voice.py)). A developer
 deploys the voice by hand with that secret mounted (plus `MCP_URL`, `WHATSAPP_FROM` of their own) and a
 platform person holding `Voice.Url.Write` saves its URL (`PATCH /v1/businesses/{id}` `voiceUrl`: it must
@@ -231,7 +232,9 @@ src/
   wiring.py          Builds every service; shared by main.py and the CLI
   dependencies.py    DI: service getters
   utils.py           get_path
-  models/            Pydantic types only (staff.py: /v1/payment bodies and camelCase views)
+  models/            Pydantic types only (staff.py: /v1/payment bodies; views.py: its camelCase views)
+    identity.py      Identity: who is calling, the one model every route and service gets
+    stores.py        Shopify and BigCommerce stores, and a plan paid through one
     db.py            THE registry: Default and BusinessDb collections, doc ids, camelCase (to_doc, STORED)
     paths.py         THE registry of storage paths, and the patterns media.py checks
   routes/
@@ -241,6 +244,7 @@ src/
     checkout.py      Its checkout and portal URLs
     webhook.py       Stripe events
     recover.py       /recover: break-glass key rotation (templates/recover.html)
+    pages.py         What the HTML pages share: templates and headers
   db/                db — base.py: the one Database contract (documents, queries, rows, admin ops);
                      indexes.py: the indexes business data needs (the one list, provider-neutral);
                      place.py: where a business's data is, from its dbId (nested or its own database);
@@ -250,6 +254,7 @@ src/
   payment/           payment — base.py, fake.py, stripe/ (gateway.py, catalog.py, parse.py), exported as Payment
   vault/             Secret Manager (voice env per business): gcp.py, fake.py
   numbers/           Phone numbers: twilio.py (REST via httpx), fake.py
+  stores/            Shopify usage charges: shopify.py, seal.py (the console's sealed tokens), fake.py
   remote/            Unsigned readiness check of a voice URL before it is saved: restapi.py, fake.py
   services/          Business logic over a Database; unchanged when a provider changes
     errors.py        AdminError (operator refusals) and PlatformError (/v1 refusals)
@@ -262,7 +267,11 @@ src/
     webhook.py       Stripe events: drop caches, then side effects (checklist, voice env)
     plans.py         Plans as Stripe products and prices, one cache for the account, the public list
     ttl.py           The per-instance expiring cache behind plans, tenants and event dedupe
-    businesses.py    Sign-up: owner account + pending business row, idempotent per owner/email
+    businesses.py    The platform's view of businesses: reads, listings, patch, subscription
+    signup.py        Sign-up: owner account + pending business row, idempotent per owner/email
+    stores.py        Which store belongs to which business; uninstall, reinstall, a store-paid plan
+    store_rows.py    The store facts businesses.py and stores.py share
+    audit.py         `(default)/audit`: who did what to which business
     provision.py     Background provisioning of b-{id} (database, indexes, seed rows, claims; done once
                      the indexes are built)
     callers.py       Caller names, tags and blocks in b-{id}/callers
@@ -273,12 +282,14 @@ src/
     customers.py     Per-business Stripe detail for /v1/payment/businesses
     handoff.py       One-time serviceperson handoff codes: issue and redeem
     media.py         Which person may see or change each media path (one table)
+    uploads.py       An uploaded file's type and size, checked
+    recover_session.py  Who is signed in to /recover
     ivr.py           Per-number call menus (numbers/{e164}) and recordings (audios/{name}, v{n} archive)
     rate_limit.py    Per-key sliding window (password reset requests)
     people/          store.py: users, roles, assignments in (default); access.py: who is acting;
                      service.py: /v1/people rules; roles.py: /v1/roles; members.py: /v1/accounts
                      (business members); rules.py: scope rules and the role catalogue
-    platform/        data.py: scope ids and demo calls; calls.py, records.py:
+    platform/        home.py, home_sections.py: the home page; data.py: scope ids and demo calls; calls.py, records.py:
                      the browser demo's snake_case calls, mapped at the boundary
     tokens/          Ed25519 keys, verification, replay guard; caller.py, staff.py: who is calling
 cli/                 The same operations from a terminal, plus one-time setup

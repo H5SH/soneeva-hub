@@ -62,6 +62,8 @@ class Scope(StrEnum):
     HUB_BILLING_UPDATE = "hub.billing.update"
     HUB_ADVERTISEMENT_VIEW = "hub.advertisement.view"
     HUB_ADVERTISEMENT_UPDATE = "hub.advertisement.update"
+    HUB_STORE_SIGN_IN = "hub.store.signin"
+    HUB_STORE_UPDATE = "hub.store.update"
 
     PLATFORM_DOCS_VIEW = "platform.docs.view"
 
@@ -78,13 +80,6 @@ SALES = "sales"
 APP_SCOPE = "hub."
 #: Person scopes a role may hold next to the console ids (`platformScopes` in settings.json).
 ROLE_SCOPES: list[Scope] = [s for s in Scope if not s.value.startswith(APP_SCOPE)]
-
-
-def person_scopes(ids: object) -> list[str]:
-    """A role's stored ids as person scopes: strings only, every `hub.*` app scope dropped."""
-    if not isinstance(ids, list):
-        return []
-    return [s for s in ids if isinstance(s, str) and not s.startswith(APP_SCOPE)]
 
 
 #: The payment side of the built-in roles; `platformRoles` (settings.json) adds their console ids.
@@ -109,39 +104,3 @@ class UserRecord(BaseModel):
     apps: list[str] = Field(default_factory=list, description="Apps this person may act on.")
     businesses: list[str] = Field(default_factory=list, description="Empty means every business.")
     disabled: bool = False
-
-
-class Principal(BaseModel):
-    """A verified person with their role's scopes resolved."""
-
-    uid: str
-    email: str = ""
-    role: str = ""
-    scopes: list[Scope] = Field(default_factory=list)
-    apps: list[str] = Field(default_factory=list)
-    businesses: list[str] = Field(default_factory=list)
-
-    @property
-    def is_superadmin(self) -> bool:
-        return self.role == SUPERADMIN
-
-    @property
-    def sees_all(self) -> bool:
-        return self.is_superadmin or self.has(Scope.PAYMENT_ADMIN)
-
-    def has(self, scope: Scope) -> bool:
-        return scope in self.scopes
-
-    def may(self, scope: Scope, app_id: str | None = None) -> bool:
-        """Scope, then app membership. Superadmin and payment.admin skip membership."""
-        if not self.has(scope):
-            return False
-        return app_id is None or self.sees_all or app_id in self.apps
-
-    def reaches(self, business_id: str, app_id: str | None = None) -> bool:
-        """Business limit: an empty `businesses` list means no limit."""
-        if self.sees_all:
-            return True
-        if app_id and app_id not in self.apps:
-            return False
-        return not self.businesses or business_id in self.businesses

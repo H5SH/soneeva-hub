@@ -11,6 +11,7 @@ idempotent, so an interrupted or failed run is simply run again. `provisionError
 
 import asyncio
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from src.auth import AccountProvider
@@ -25,6 +26,7 @@ from src.tunables import tunable
 
 logger = logging.getLogger(__name__)
 ERROR_LENGTH = 200
+STOPPED_AFTER_SECONDS = 120
 DEFAULT_DATABASE = "(default)"
 
 
@@ -32,6 +34,15 @@ def _indexed(business: Business) -> tuple[str, tuple[DbIndex, ...]]:
     """The database holding the business's data, and the indexes it needs there."""
     where = place(business.id, business.dbId)
     return where.database or DEFAULT_DATABASE, NESTED_INDEXES if where.root else BUSINESS_INDEXES
+
+
+def stopped(business: Business) -> bool:
+    """Not provisioned, no error, and long past the slowest build: the instance running it died."""
+    started = business.provisionStartedAt or business.createdAt
+    if business.provisioned or business.provisionError or not isinstance(started, datetime):
+        return False
+    limit = tunable("businesses.indexWaitSeconds") + STOPPED_AFTER_SECONDS
+    return (datetime.now(UTC) - started).total_seconds() > limit
 
 
 class Provisioner:
@@ -51,6 +62,8 @@ class Provisioner:
             return business
         self._running.add(business_id)
         try:
+            started = {"provisionStartedAt": datetime.now(UTC)}
+            await self._db.upsert_live(Default.BUSINESSES, business_id, started)
             if business.provisioned:
                 await self._indexes(business)
                 await self._checklist.seed(business_db(self._db, business.id, business.dbId), business.type)
@@ -58,12 +71,12 @@ class Provisioner:
                 await self._build(business, row.get("signup") or {})
         except Exception as error:
             message = (str(error) or type(error).__name__)[:ERROR_LENGTH]
-            await self._db.set_row(Default.BUSINESSES, business_id, {"provisionError": message})
+            await self._db.upsert_live(Default.BUSINESSES, business_id, {"provisionError": message})
             raise
         finally:
             self._running.discard(business_id)
         done = {"provisioned": True, "provisionError": None}
-        await self._db.set_row(Default.BUSINESSES, business_id, done)
+        await self._db.upsert_live(Default.BUSINESSES, business_id, done)
         return business.model_copy(update=done)
 
     async def quietly(self, business_id: str) -> None:
@@ -81,7 +94,7 @@ class Provisioner:
             raise PlatformError("The owner's account no longer exists", 409)
         bdb = business_db(self._db, business.id, business.dbId)
         catalogue = await self._catalogue(business.appId)
-        roles = [bdb.set_row(BusinessDb.ROLES, role, {
+        roles = [bdb.upsert_live(BusinessDb.ROLES, role, {
             "name": row["name"], "scopes": catalogue if "*" in row["scopes"] else row["scopes"],
         }) for role, row in tunable("businesses.roles").items()]
         await asyncio.gather(
@@ -91,7 +104,7 @@ class Provisioner:
                 "hours": signup.get("hours") or {},
             }),
             self._checklist.seed(bdb, business.type),
-            bdb.set_row(BusinessDb.USERS, business.ownerUid, {
+            bdb.upsert_live(BusinessDb.USERS, business.ownerUid, {
                 "role": "owner", "branchIds": [],
                 "profile": {"name": owner.displayName, "email": owner.email, "phone": ""},
             }),
@@ -110,8 +123,8 @@ class Provisioner:
     async def _database(self, business: Business) -> None:
         """Its own database, or its region's shared one; nothing when nested in `(default)`."""
         where = place(business.id, business.dbId)
-        if where.database and where.root:
-            await self._db.create_database(where.database, region_location(business.dbId.partition("/")[0]))
+        if where.database and where.region:
+            await self._db.create_database(where.database, region_location(where.region))
         elif where.database:
             await self._db.create_database(where.database, business.dataLocation or None)
 

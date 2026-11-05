@@ -2,7 +2,7 @@
 
 from cli.context import Context
 from cli.output import Printer
-from src.models.staff import tool_view
+from src.models.views import tool_view
 from src.services.tokens.generate import hub_env_block
 
 
@@ -45,6 +45,6 @@ async def delete_tool(ctx: Context, out: Printer, args) -> None:
 
 async def rotate_key(ctx: Context, out: Printer, args) -> None:
     """Shown once and never stored; old keys retire. Refused for keys per business (redeploy instead)."""
-    kid, private_pem = await ctx.tools.rotate_key(args.tool_id)
+    kid, private_pem = await ctx.tools.rotate_key(args.tool_id, bool(args.revoke))
     payload = {"toolId": args.tool_id, "kid": kid, "privateKey": private_pem}
     out.emit(payload, lambda: out.block(hub_env_block(args.tool_id, kid, private_pem)))

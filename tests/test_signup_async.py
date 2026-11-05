@@ -29,7 +29,7 @@ class FakeIdentity:
 @pytest.fixture
 def signup(client, bearer, services):
     invoke(services, "seed:soneeva")
-    services.businesses.identity = FakeIdentity(services.accounts)
+    services.businesses.signups.identity = FakeIdentity(services.accounts)
 
     def post(body=SIGNUP):
         return client.post("/v1/businesses", json=body, headers=bearer("soneeva", CONSOLE))

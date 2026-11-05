@@ -12,9 +12,10 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
 
-from src.db.base import Database, Doc, Query, Transaction, Write
-from src.db.base import path as join
+from src.db.base import Database, Transaction
 from src.db.indexes import DbIndex
+from src.db.query import Doc, Query, Write
+from src.db.query import path as join
 from src.models.db import Default
 
 #: The shared database of region `eu` is `region-eu` (a database id needs four characters at least).
@@ -29,6 +30,8 @@ class Place:
     database: str | None
     #: `businesses/{id}` when nested, else "".
     root: str
+    #: The shared region's key when it is in one's own database.
+    region: str | None = None
 
 
 def place(business_id: str, db_id: str | None) -> Place:
@@ -36,7 +39,7 @@ def place(business_id: str, db_id: str | None) -> Place:
     if not db_id:
         return Place(None, nested)
     region, slash, _ = db_id.partition("/")
-    return Place(REGION_PREFIX + region, nested) if slash else Place(db_id, "")
+    return Place(REGION_PREFIX + region, nested, region) if slash else Place(db_id, "")
 
 
 def region_db(region: str) -> str:
@@ -86,12 +89,6 @@ class Nested(Database):
 
     async def indexes_ready(self, name: str, indexes: Sequence[DbIndex]) -> bool:
         return await self._db.indexes_ready(name, indexes)
-
-    async def collections(self) -> list[str]:
-        raise NotImplementedError("A nested business has no top-level collections")
-
-    async def drop_collection(self, name: str) -> None:
-        raise NotImplementedError("A nested business has no top-level collections")
 
     # ── documents ────────────────────────────────────────────────────────────
     async def get(self, path: str, doc_id: str) -> dict[str, Any] | None:

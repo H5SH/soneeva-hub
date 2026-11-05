@@ -3,8 +3,9 @@
 from fastapi import APIRouter
 
 from src.dependencies import AdminDep, CustomerDep
-from src.models.admin import Principal, Scope
-from src.models.staff import invoice_view, plan_view, subscription_view
+from src.models.admin import Scope
+from src.models.identity import Identity
+from src.models.views import invoice_view, plan_view, subscription_view
 from src.services.tokens.staff import requires_staff
 
 router = APIRouter(prefix="/v1/payment/businesses", tags=["payment"])
@@ -13,7 +14,7 @@ VIEW = Scope.HUB_PAYMENT_VIEW
 
 @router.get("")
 async def list_businesses(
-    customers: CustomerDep, person: Principal = requires_staff(VIEW, Scope.BUSINESS_VIEW)
+    customers: CustomerDep, person: Identity = requires_staff(VIEW, Scope.BUSINESS_VIEW)
 ) -> dict:
     rows = await customers.every(person)
     return {"businesses": [{"business": b.model_dump(mode="json"), "subscription": subscription_view(r)}
@@ -23,7 +24,7 @@ async def list_businesses(
 @router.get("/{business_id}")
 async def get_business(
     business_id: str, customers: CustomerDep, admin: AdminDep,
-    person: Principal = requires_staff(VIEW, Scope.BUSINESS_VIEW),
+    person: Identity = requires_staff(VIEW, Scope.BUSINESS_VIEW),
 ) -> dict:
     business, record = await customers.one(person, business_id)
     app = await admin.get_app(business.appId, business.mode)
@@ -34,7 +35,7 @@ async def get_business(
 
 @router.get("/{business_id}/invoices")
 async def list_invoices(
-    business_id: str, customers: CustomerDep, person: Principal = requires_staff(VIEW, Scope.INVOICE_VIEW)
+    business_id: str, customers: CustomerDep, person: Identity = requires_staff(VIEW, Scope.INVOICE_VIEW)
 ) -> dict:
     """Straight from Stripe, newest first (`customers.invoicesShown`)."""
     business, record = await customers.one(person, business_id)
@@ -43,7 +44,7 @@ async def list_invoices(
 
 @router.get("/{business_id}/usage")
 async def usage(
-    business_id: str, customers: CustomerDep, person: Principal = requires_staff(VIEW, Scope.USAGE_VIEW)
+    business_id: str, customers: CustomerDep, person: Identity = requires_staff(VIEW, Scope.USAGE_VIEW)
 ) -> dict:
     """Seconds per day from the Stripe meter (`customers.usageDaysShown`)."""
     return await customers.usage(*await customers.one(person, business_id))

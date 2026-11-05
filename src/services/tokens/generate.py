@@ -4,12 +4,13 @@ The private half is returned to the caller once and never stored. Rotation retir
 keys rather than deleting them, so tokens already in flight keep verifying until they expire.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from src.models.auth import KeyStatus, PublicKey
+from src.tunables import tunable
 
 
 def generate() -> tuple[str, str]:
@@ -31,20 +32,23 @@ def generate() -> tuple[str, str]:
     return private_pem, public_pem
 
 
-def rotate(keys: list[PublicKey]) -> tuple[list[PublicKey], str, str]:
-    """A fresh key, the rest retired. Returns (keys, kid, private PEM)."""
+def rotate(keys: list[PublicKey], revoke: bool = False) -> tuple[list[PublicKey], str, str]:
+    """A fresh key. The others keep verifying for `keys.retiringSeconds`, so the caller can redeploy, or
+    stop at once with `revoke` (a leaked key). Returns (keys, kid, private PEM)."""
     private_pem, public_pem = generate()
-    kid = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
-    retired = [k.model_copy(update={"status": KeyStatus.RETIRING}) for k in keys]
+    now = datetime.now(UTC)
+    until = now + timedelta(seconds=tunable("keys.retiringSeconds"))
+    retired = [k if k.status is KeyStatus.RETIRING else
+               k.model_copy(update={"status": KeyStatus.RETIRING, "retiring_until": until})
+               for k in keys if k.live and not revoke]
+    kid = now.strftime("%Y%m%d%H%M%S")
     return [*retired, PublicKey(kid=kid, public_key=public_pem)], kid, private_pem
 
 
-def subject_key(keys: list[PublicKey], subject: str) -> tuple[list[PublicKey], str, str]:
-    """A key that only signs for `subject`, replacing that subject's previous one; others untouched."""
+def subject_key(subject: str) -> tuple[PublicKey, str]:
+    """A key that only signs for `subject`. Returns (key, private PEM)."""
     private_pem, public_pem = generate()
-    kid = f"sub-{subject}"
-    kept = [k for k in keys if k.kid != kid]
-    return [*kept, PublicKey(kid=kid, public_key=public_pem, subject=subject)], kid, private_pem
+    return PublicKey(kid=f"sub-{subject}", public_key=public_pem, subject=subject), private_pem
 
 
 def env_block(application_id: str, kid: str, private_pem: str) -> str:

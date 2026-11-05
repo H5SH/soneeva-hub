@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
 
 from src.dependencies import AppDep, VoiceDep, WebhooksDep
 from src.models.mode import staged
@@ -16,7 +16,6 @@ async def stripe_webhook(
     app: AppDep,
     by_mode: WebhooksDep,
     voice: VoiceDep,
-    tasks: BackgroundTasks,
     stripe_signature: str | None = Header(default=None),
 ) -> dict[str, str]:
     """Public: authenticated by the gateway signature. `{appId}_staging` is the app's Stripe test mode.
@@ -28,9 +27,10 @@ async def stripe_webhook(
     except ValueError as error:
         logger.warning(f"Rejected webhook for {app.id}: {error}")
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid webhook signature") from error
-    result = await webhooks.handle(app, event)
-    handled = result not in ("duplicate", "unmapped")
-    business_id = voice.subscribed_business(app.id, event) if handled else None
-    if business_id:
-        tasks.add_task(voice.provide_quietly, business_id)
-    return {"result": result}
+
+    async def voice_env() -> None:
+        business_id = voice.subscribed_business(app.id, event)
+        if business_id:
+            await voice.provide(business_id)
+
+    return {"result": await webhooks.handle(app, event, voice_env)}

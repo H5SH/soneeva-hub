@@ -14,11 +14,12 @@ from src.dependencies import BusinessDep, CallersDep
 from src.models.admin import Scope
 from src.models.callers import CallerBlock, CallerPatch, CallerQuery, block_fields, clean_tag
 from src.models.db import BusinessDb
+from src.models.identity import Identity
 from src.models.ivr import E164
-from src.models.platform import Business, Caller
+from src.models.platform import Business
 from src.services.businesses import BusinessService
 from src.services.errors import PlatformError
-from src.services.people.access import business_scopes
+from src.services.people.access import held_in
 from src.services.people.rules import CANNOT_READ, holds, reads_business
 from src.services.tokens.caller import requires_caller
 from src.tunables import tunable
@@ -27,26 +28,27 @@ router = APIRouter(prefix="/v1/businesses/{business_id}/callers", tags=["callers
 READ, EDIT, BLOCK = {"callers.view", "callers.edit"}, {"callers.edit"}, {"callers.block"}
 
 
-async def allowed(businesses: BusinessService, caller: Caller, business_id: str,
+async def allowed(businesses: BusinessService, caller: Identity, business_id: str,
                   *needs: set[str]) -> Business:
     """Each of `needs` (READ, EDIT, BLOCK) met by a business person; a platform person reads by
     `reads_business` and writes with Businesses.Write."""
     business = await businesses.require(caller, business_id)
     if caller.business_id:
-        held = await business_scopes(businesses.business_db(business), caller.uid) if caller.uid else []
+        held = await held_in(businesses, business, caller)
         for need in needs:
-            if not need & set(held):
-                raise PlatformError(f"Requires {'callers.view' if need is READ else min(need)}", 403)
+            if not need & held:
+                named = "callers.view" if need is READ else next(iter(need))
+                raise PlatformError(f"Requires {named}", 403)
         return business
     if needs == (READ,):
         if not reads_business(caller, business):
             raise PlatformError(CANNOT_READ, 403)
-    elif caller.person_scopes is not None and not holds(caller.person_scopes, "Businesses.Write"):
+    elif caller.role_scopes is not None and not holds(caller.role_scopes, "Businesses.Write"):
         raise PlatformError("Requires Businesses.Write", 403)
     return business
 
 
-async def branch_limit(businesses: BusinessService, business: Business, caller: Caller) -> list[str] | None:
+async def branch_limit(businesses: BusinessService, business: Business, caller: Identity) -> list[str] | None:
     """The branches a business member is limited to, or None for every branch."""
     if not caller.business_id or not caller.uid:
         return None
@@ -55,10 +57,10 @@ async def branch_limit(businesses: BusinessService, business: Business, caller: 
     return limit or None
 
 
-async def audit(businesses: BusinessService, business: Business, caller: Caller,
+async def audit(businesses: BusinessService, business: Business, caller: Identity,
                 action: str, data: dict) -> None:
     """One line in the business's own `audit/`, next to the console's."""
-    await businesses.business_db(business).set_row(BusinessDb.AUDIT, uuid.uuid4().hex, {
+    await businesses.business_db(business).upsert_live(BusinessDb.AUDIT, uuid.uuid4().hex, {
         "action": action, "by": caller.uid or caller.app_id, "serviceperson": False, "data": data,
         "at": datetime.now(UTC),
     })
@@ -70,7 +72,7 @@ async def list_callers(
     q: str = Query(default="", max_length=80), tag: str = Query(default="", max_length=80),
     blocked: bool = Query(default=False), limit: int = Query(default=0, ge=0),
     before: str = Query(default="", max_length=80),
-    caller: Caller = requires_caller(Scope.HUB_BUSINESS_VIEW),
+    caller: Identity = requires_caller(Scope.HUB_BUSINESS_VIEW),
 ) -> dict:
     """By number or name prefix (`q`), by one `tag`, only `blocked` ones, or most recent call first."""
     business = await allowed(businesses, caller, business_id, READ)
@@ -85,7 +87,7 @@ async def list_callers(
 @router.post("")
 async def block_number(
     business_id: str, body: CallerBlock, businesses: BusinessDep, callers: CallersDep,
-    caller: Caller = requires_caller(Scope.HUB_BUSINESS_UPDATE),
+    caller: Identity = requires_caller(Scope.HUB_BUSINESS_UPDATE),
 ) -> dict:
     """Blocks a number, creating its caller when it never called (only for people not limited to branches)."""
     business = await allowed(businesses, caller, business_id, BLOCK)
@@ -104,7 +106,7 @@ async def block_number(
 @router.patch("/{phone}")
 async def update_caller(
     business_id: str, body: CallerPatch, businesses: BusinessDep, callers: CallersDep,
-    phone: str = Path(pattern=E164), caller: Caller = requires_caller(Scope.HUB_BUSINESS_UPDATE),
+    phone: str = Path(pattern=E164), caller: Identity = requires_caller(Scope.HUB_BUSINESS_UPDATE),
 ) -> dict:
     """Merges `name`, `tags` and/or `blocked`; the voice service never writes them."""
     needs = ([EDIT] if body.edits else []) + ([BLOCK] if body.blocked is not None else [])

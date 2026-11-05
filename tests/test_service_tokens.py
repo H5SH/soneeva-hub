@@ -26,7 +26,7 @@ async def test_subject_key_only_signs_for_its_business(services, bearer, client)
     response = client.post("/v1/usage", json={"callId": "c1", "seconds": 5},
                            headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 401
-    assert "subject" in response.json()["detail"]
+    assert response.json()["detail"] == "Unknown signing key"
 
 
 def test_missing_bearer_is_401(client):

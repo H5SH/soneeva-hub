@@ -68,10 +68,10 @@ def test_an_edited_role_applies_on_the_next_request(platform, client, bearer):
     assert client.get("/v1/people/u2", headers=as_(bearer, "u1")).status_code == 200
 
 
-def test_taking_scopes_off_needs_nothing_and_hub_ids_never_stay(platform, client, bearer):
+def test_taking_scopes_off_needs_nothing_and_hub_ids_are_refused(platform, client, bearer):
     rows = platform.db.rows
     rows[("roles", "editor")] = {"scopes": ["Roles.Write"]}
-    rows[("roles", "ops")] = {"scopes": ["Users.View", "payment.key.rotate", "hub.business.view"]}
+    rows[("roles", "ops")] = {"scopes": ["Users.View", "payment.key.rotate"]}
     rows[("users", "ed")] = {"role": "editor"}
     platform.accounts.add("ed", username="ed")
     def ed():
@@ -79,7 +79,9 @@ def test_taking_scopes_off_needs_nothing_and_hub_ids_never_stay(platform, client
 
     listed = {r["name"]: r["scopes"] for r in client.get(URL, headers=ed()).json()["roles"]}
     assert listed["ops"] == ["Users.View", "payment.key.rotate"]
-    kept = {"scopes": ["payment.key.rotate", "hub.number.buy"]}
+    refused = {"scopes": ["payment.key.rotate", "hub.number.buy"]}
+    assert client.put(f"{URL}/ops", json=refused, headers=ed()).status_code == 422
+    kept = {"scopes": ["payment.key.rotate"]}
     assert client.put(f"{URL}/ops", json=kept, headers=ed()).status_code == 200
     assert rows[("roles", "ops")]["scopes"] == ["payment.key.rotate"]
     assert client.put(f"{URL}/ops", json={"scopes": ["Users.View"]}, headers=ed()).status_code == 403

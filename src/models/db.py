@@ -37,6 +37,8 @@ class Default(StrEnum):
     ASSIGNMENTS = "assignments"
     #: Advertisements karbon-admin writes and publishes to businesses (a copy in each `b-{id}`).
     ADVERTISEMENTS = "advertisements"
+    #: Which store belongs to which business; its details and token are in the business's own database.
+    STORES = "stores"
     #: Demo-owned: the browser demo's callers, calls and messages, in snake_case.
     CALLERS = "callers"
     #: The demo's settings (`demo/settings`), camelCase: written here, read and followed by the demo.
@@ -62,6 +64,8 @@ class BusinessDb(StrEnum):
     AUDIT = "audit"
     #: Published copies of `(default)/advertisements` for the console; `dismissed` is the business's.
     ADVERTISEMENTS = "advertisements"
+    #: The console's: `connections/{platform}`, the store and its sealed token.
+    CONNECTIONS = "connections"
 
 
 class Sub(StrEnum):
@@ -71,8 +75,8 @@ class Sub(StrEnum):
     MESSAGES = "messages"
 
 
-Collection = Default | BusinessDb
-
+#: The field on a `businesses/{id}` row with its voice's public key; never in the API.
+VOICE_KEY = "voiceKey"
 #: settings/{id} in a business database.
 AGENT_SETTINGS = "agent"
 CONSOLE_SETTINGS = "console"
@@ -84,6 +88,11 @@ DEMO_HISTORY = "history"
 # ── doc ids ─────────────────────────────────────────────────────────────────
 def assignment_id(serviceperson_uid: str, user_uid: str) -> str:
     return f"{serviceperson_uid}_{user_uid}"
+
+
+def store_id(platform: str, store: str, test: bool = False) -> str:
+    """A staging app is another app to the store, so the same store can have a business in each mode."""
+    return f"{platform}:{store}" + (":test" if test else "")
 
 
 # ── camelCase on disk ───────────────────────────────────────────────────────

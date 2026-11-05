@@ -6,7 +6,7 @@ from cli.context import OPERATOR, Context
 from cli.output import Printer
 from src.models.discount import Discount, DiscountKind
 from src.models.mode import staged
-from src.models.staff import coupon_view, invoice_view, plan_view, subscription_view
+from src.models.views import coupon_view, invoice_view, plan_view, subscription_view
 from src.services.errors import AdminError
 
 
@@ -26,7 +26,7 @@ async def create_coupon(ctx: Context, out: Printer, args) -> None:
     try:
         terms = Discount.build(
             kind=DiscountKind.AMOUNT if args.amount else DiscountKind.PERCENT,
-            value=float(args.amount or args.percent), currency=args.currency, duration=args.duration,
+            value=float(args.amount or args.percent), currency=args.currency or "usd", duration=args.duration,
             months=args.months or None, max_redemptions=args.max or None,
             expires_at=datetime.fromisoformat(args.expires) if args.expires else None,
         )

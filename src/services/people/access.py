@@ -13,16 +13,15 @@ from fastapi import Depends, HTTPException, Request, status
 from src.db import Database
 from src.models.admin import Scope
 from src.models.db import BusinessDb
-from src.models.people import Actor
-from src.models.platform import Caller
+from src.models.identity import Identity
+from src.models.platform import Business
 from src.services.businesses import BusinessService
-from src.services.people.store import People
+from src.services.errors import PlatformError
+from src.services.people.rules import CANNOT_READ, reads_business
+from src.services.people.store import People, strings
+from src.services.state import services_of
 from src.services.tokens.caller import verify
 from src.tunables import tunable
-
-
-def _strings(value: Any) -> list[str]:
-    return [s for s in value if isinstance(s, str)] if isinstance(value, list) else []
 
 
 def grant_ended(until: Any, now: datetime) -> bool:
@@ -33,7 +32,7 @@ def grant_ended(until: Any, now: datetime) -> bool:
 
 async def _role_scopes(bdb: Database, role: Any) -> list[str]:
     row = await bdb.get_row(BusinessDb.ROLES, role) if isinstance(role, str) and role else None
-    return _strings((row or {}).get("scopes"))
+    return strings((row or {}).get("scopes"))
 
 
 async def business_scopes(bdb: Database, uid: str, now: datetime | None = None) -> list[str]:
@@ -44,8 +43,25 @@ async def business_scopes(bdb: Database, uid: str, now: datetime | None = None) 
     if not grant or grant.get("blocked") or grant_ended(grant.get("until"), now or datetime.now(UTC)):
         return []
     never = set(tunable("people.grantNever"))
-    scopes = _strings(grant.get("scopes")) + await _role_scopes(bdb, grant.get("roleId"))
+    scopes = strings(grant.get("scopes")) + await _role_scopes(bdb, grant.get("roleId"))
     return sorted({s for s in scopes if s not in never})
+
+
+async def held_in(businesses: BusinessService, business: Business, caller: Identity) -> set[str]:
+    """What the person the business token names holds there."""
+    return set(await business_scopes(businesses.business_db(business), caller.uid)) if caller.uid else set()
+
+
+async def member_or_reader(businesses: BusinessService, caller: Identity, business_id: str,
+                           scopes: set[str]) -> Business:
+    """The business, for a member holding one of `scopes`, or a platform person who `reads_business`."""
+    business = await businesses.require(caller, business_id)
+    if caller.business_id:
+        if not scopes & await held_in(businesses, business, caller):
+            raise PlatformError(f"Requires {' or '.join(sorted(scopes))}", 403)
+    elif not reads_business(caller, business):
+        raise PlatformError(CANNOT_READ, 403)
+    return business
 
 
 class ActorResolver:
@@ -53,10 +69,10 @@ class ActorResolver:
         self._people = people
         self._businesses = businesses
 
-    async def resolve(self, caller: Caller) -> Actor:
+    async def resolve(self, caller: Identity) -> Identity:
         if not caller.uid:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Name the person acting (uid)")
-        actor = Actor(app_id=caller.app_id, sub=caller.sub, uid=caller.uid)
+        actor = caller
         if caller.business_id:
             bdb = await self._businesses.database(caller.business_id)
             if not bdb:
@@ -69,13 +85,14 @@ class ActorResolver:
         if profile:
             roles = await self._people.roles()
             actor.platform = True
-            actor.role, actor.tokens, actor.apps = profile["role"], profile["tokens"], profile["apps"]
+            actor.role, actor.tokens = profile["role"], profile["tokens"]
+            actor.apps, actor.businesses = profile["apps"], profile["businesses"]
             actor.scopes = roles.get(profile["role"] or "", [])
         return actor
 
 
-def _app_holds(scope: Scope, caller: Caller, *alternatives: Scope) -> Caller:
-    if not {str(s) for s in (scope, *alternatives)} & set(caller.scopes):
+def _app_holds(scope: Scope, caller: Identity, *alternatives: Scope) -> Identity:
+    if not {str(s) for s in (scope, *alternatives)} & set(caller.app_scopes):
         raise HTTPException(status.HTTP_403_FORBIDDEN, f"Requires {scope}")
     return caller
 
@@ -83,14 +100,14 @@ def _app_holds(scope: Scope, caller: Caller, *alternatives: Scope) -> Caller:
 def requires_app(scope: Scope, *alternatives: Scope) -> Callable:
     """The app's scope (or one of `alternatives`) only, for data about no one (the scope catalogue)."""
 
-    async def check(caller: Caller = Depends(verify)) -> Caller:
+    async def check(caller: Identity = Depends(verify)) -> Identity:
         return _app_holds(scope, caller, *alternatives)
 
     return Depends(check)
 
 
 def requires_actor(scope: Scope) -> Callable:
-    async def check(request: Request, caller: Caller = Depends(verify)) -> Actor:
-        return await request.app.state.actors.resolve(_app_holds(scope, caller))
+    async def check(request: Request, caller: Identity = Depends(verify)) -> Identity:
+        return await services_of(request).actors.resolve(_app_holds(scope, caller))
 
     return Depends(check)

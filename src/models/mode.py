@@ -6,6 +6,10 @@ STAGING = "_staging"
 STAGING_ONLY = "A staging caller only reaches test businesses"
 
 
+#: The app Soneeva's businesses belong to, whose console and voice these are.
+SONEEVA = "soneeva"
+
+
 class Mode(StrEnum):
     LIVE = "live"
     TEST = "test"
